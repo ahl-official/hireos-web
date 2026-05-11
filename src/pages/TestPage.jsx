@@ -43,7 +43,7 @@ export default function TestPage() {
     handleReRecord,
     handleDoneAndNext,
     handleNext
-  } = useAutoInterviewSession(questions);
+  } = useAutoInterviewSession(questions, introAccepted && systemCheckPassed);
 
   const browserSupported = typeof window !== 'undefined' && 'MediaRecorder' in window && 'speechSynthesis' in window;
 
@@ -73,9 +73,9 @@ export default function TestPage() {
 
   useEffect(() => {
     if (status === 'ready' && systemCheckPassed && !introAccepted) {
-      playIntro();
+      setErrorMessage('Tap begin to hear the introduction.');
     }
-  }, [introAccepted, playIntro, status, systemCheckPassed]);
+  }, [introAccepted, status, systemCheckPassed]);
 
   const handleSubmit = useCallback(async (e, autoSubmit = false) => {
     if (e?.preventDefault) e.preventDefault();
@@ -327,7 +327,7 @@ export default function TestPage() {
             </div>
 
             <button
-              onClick={() => setIntroAccepted(true)}
+              onClick={playIntro}
               className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-base transition-all shadow-lg shadow-indigo-900/40 hover:shadow-indigo-900/60 hover:scale-[1.02] active:scale-[0.99]"
             >
               Begin Interview
@@ -450,13 +450,6 @@ export default function TestPage() {
                 {currentTopic && (
                   <span className="text-[10px] px-2 py-0.5 bg-indigo-500/10 text-indigo-400 rounded-full border border-indigo-500/20 font-medium uppercase tracking-wider">{currentTopic}</span>
                 )}
-                {currentDiff && (
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wider ${
-                    currentDiff === 'medium' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                    currentDiff === 'hard' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
-                    'bg-red-500/10 text-red-400 border-red-500/20'
-                  }`}>{diffLabel[currentDiff] || currentDiff}</span>
-                )}
               </div>
             </div>
           </div>
@@ -532,6 +525,13 @@ export default function TestPage() {
               </div>
             )}
           </div>
+
+          {lastTranscript && (
+            <div className="px-4 pb-4 border-t border-white/5 text-xs text-slate-400">
+              <div className="font-semibold text-slate-500 mb-1">Last heard</div>
+              <p className="whitespace-pre-wrap leading-6">{lastTranscript}</p>
+            </div>
+          )}
         </div>
 
         {/* ── Mic Button + Controls ── */}

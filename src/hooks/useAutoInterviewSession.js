@@ -25,7 +25,7 @@ export const cleanTranscript = (rawText) => {
 
 export const validateTranscript = (rawText) => {
   const cleaned = cleanTranscript(rawText);
-  const meaningfulWords = cleaned.split(/\s+/).filter((word) => word.length > 2);
+  const meaningfulWords = cleaned.split(/\s+/).filter((word) => word.length > 1);
 
   if (!cleaned) {
     return { valid: false, cleaned, reason: 'No speech detected.' };
@@ -61,7 +61,7 @@ const speakWithVoice = (text, onStart, onEnd) => {
   }
 };
 
-export function useAutoInterviewSession(questions = []) {
+export function useAutoInterviewSession(questions = [], isSessionReady = true) {
   const [answers, setAnswers] = useState({});
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -84,6 +84,7 @@ export function useAutoInterviewSession(questions = []) {
   const analyserRef = useRef(null);
   const silenceStartRef = useRef(null);
   const rafRef = useRef(null);
+  const speechStartedRef = useRef(false);
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) return;
@@ -270,17 +271,28 @@ export function useAutoInterviewSession(questions = []) {
     if (!text) return;
 
     questionSessionRef.current[currentQuestionIndex] = true;
+    speechStartedRef.current = false;
     setStatusMessage('Asking the question...');
-    speakWithVoice(text, () => setIsSpeaking(true), () => {
+    speakWithVoice(text, () => {
+      speechStartedRef.current = true;
+      setIsSpeaking(true);
+    }, () => {
       setIsSpeaking(false);
-      setStatusMessage('Waiting for your response...');
-      if (!answers[currentQuestionIndex]) {
-        startRecording();
+      if (speechStartedRef.current) {
+        setStatusMessage('Waiting for your response...');
+        if (!answers[currentQuestionIndex]) {
+          startRecording();
+        }
+      } else {
+        questionSessionRef.current[currentQuestionIndex] = false;
+        setAudioError('Question audio could not play. Please replay the question.');
+        setStatusMessage('Audio did not play. Tap replay to hear the question again.');
       }
     });
   }, [answers, currentQuestionIndex, startRecording]);
 
   const startCurrentQuestion = useCallback(() => {
+    if (!isSessionReady) return;
     if (!questions[currentQuestionIndex]) return;
     if (answers[currentQuestionIndex]) return;
     if (needsManualRetry) return;
@@ -288,12 +300,12 @@ export function useAutoInterviewSession(questions = []) {
     if (questionSessionRef.current[currentQuestionIndex]) return;
 
     speakQuestion(questions[currentQuestionIndex]);
-  }, [answers, currentQuestionIndex, isProcessingAudio, isRecording, isSpeaking, needsManualRetry, questions, speakQuestion]);
+  }, [answers, currentQuestionIndex, isProcessingAudio, isRecording, isSpeaking, isSessionReady, needsManualRetry, questions, speakQuestion]);
 
   useEffect(() => {
-    if (!questions.length) return;
+    if (!questions.length || !isSessionReady) return;
     startCurrentQuestion();
-  }, [currentQuestionIndex, questions.length, startCurrentQuestion]);
+  }, [currentQuestionIndex, questions.length, isSessionReady, startCurrentQuestion]);
 
   const toggleRecording = useCallback(() => {
     if (isRecording) {
