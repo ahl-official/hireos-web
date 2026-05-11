@@ -351,7 +351,7 @@ export default function TestPage() {
 
       {/* ── Top Bar ── */}
       <header className="border-b border-white/5 bg-[#060810]/90 backdrop-blur-xl sticky top-0 z-20">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-black text-xs">H</span>
@@ -373,7 +373,7 @@ export default function TestPage() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {timeLeft !== null && (
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
                 isTimeLow ? 'bg-red-500/15 text-red-400 border-red-500/30 animate-pulse' : 'bg-white/5 text-slate-400 border-white/10'
@@ -407,7 +407,7 @@ export default function TestPage() {
         <div className={`rounded-2xl border p-5 transition-all duration-500 ${
           isSpeaking ? 'border-indigo-500/40 bg-indigo-500/5 shadow-lg shadow-indigo-900/30' : 'border-white/8 bg-white/3'
         }`}>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
             {/* Avatar */}
             <div className="relative shrink-0">
               <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center transition-all ${isSpeaking ? 'shadow-lg shadow-indigo-900/60 scale-105' : ''}`}>
@@ -428,7 +428,7 @@ export default function TestPage() {
               </div>
 
               {/* Question */}
-              <div className="flex items-start gap-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <p className="text-white text-base sm:text-lg font-semibold leading-relaxed flex-1">
                   {questions[currentQuestionIndex]}
                 </p>
@@ -572,15 +572,15 @@ export default function TestPage() {
              'Tap to speak your answer')}
           </p>
           {audioError && (
-            <p className="text-xs text-red-300 mt-1 max-w-md text-center">{audioError}</p>
+            <p className="text-xs text-red-300 mt-1 max-w-full text-center">{audioError}</p>
           )}
           {needsManualRetry && !isRecording && (
-            <p className="text-xs text-slate-400 mt-1 max-w-md text-center">The interview has paused so you can retry the response manually.</p>
+            <p className="text-xs text-slate-400 mt-1 max-w-full text-center">The interview has paused so you can retry the response manually.</p>
           )}
 
           {/* Navigation Actions */}
           {currentAnswer && !isRecording && !isProcessingAudio && (
-            <div className="flex items-center gap-3 w-full max-w-sm">
+            <div className="flex flex-col sm:flex-row items-stretch gap-3 w-full max-w-sm">
               <button
                 onClick={handleReRecord}
                 disabled={isAcknowledging}
@@ -600,7 +600,7 @@ export default function TestPage() {
         </div>
 
         {/* ── Progress Footer ── */}
-        <div className="border-t border-white/5 pt-4 mt-auto flex items-center justify-between text-xs text-slate-600">
+        <div className="border-t border-white/5 pt-4 mt-auto flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-slate-600 gap-2">
           <span>{answeredCount} of {questions.length} answered</span>
           <button
             onClick={() => handleSubmit(null, false)}

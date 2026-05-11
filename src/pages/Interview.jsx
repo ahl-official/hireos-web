@@ -56,11 +56,11 @@ export default function Interview() {
           <input ref={fileRef} onChange={handleFile} type="file" accept="application/pdf" className="mb-2" />
           {fileLoading && <div className="text-sm text-slate-400">Parsing PDF...</div>}
           <textarea value={cvText} onChange={e => setCvText(e.target.value)} rows={6} className="w-full bg-transparent border border-white/5 p-2 mt-2 rounded" placeholder="Or paste CV text here" />
-          <div className="flex gap-2 mt-2 items-center">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
             <label className="text-xs text-slate-400">Time limit (min)</label>
-            <input type="number" min={1} max={240} value={timeLimit} onChange={e => setTimeLimit(Number(e.target.value) || 0)} className="w-24 p-2 bg-transparent border border-white/5 rounded" />
-            <button onClick={runGenerateTechQs} className="px-3 py-2 bg-indigo-600 rounded">Generate Tech Qs</button>
-            <button onClick={() => setCvText('')} className="px-3 py-2 bg-white/5 rounded">Clear</button>
+            <input type="number" min={1} max={240} value={timeLimit} onChange={e => setTimeLimit(Number(e.target.value) || 0)} className="w-full sm:w-24 p-2 bg-transparent border border-white/5 rounded" />
+            <button onClick={runGenerateTechQs} className="w-full sm:w-auto px-3 py-2 bg-indigo-600 rounded">Generate Tech Qs</button>
+            <button onClick={() => setCvText('')} className="w-full sm:w-auto px-3 py-2 bg-white/5 rounded">Clear</button>
           </div>
         </div>
 
@@ -85,7 +85,7 @@ export default function Interview() {
             )}
 
             {STEPS[step].id === 'role_or_left_when' && (
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input value={candidate.role} onChange={e => setAnswer('role', e.target.value)} placeholder="Role (if working)" className="flex-1 p-2 bg-transparent border border-white/5 rounded" />
                 <input value={candidate.leftWhen} onChange={e => setAnswer('leftWhen', e.target.value)} placeholder="Left when (if not working)" className="flex-1 p-2 bg-transparent border border-white/5 rounded" />
               </div>
