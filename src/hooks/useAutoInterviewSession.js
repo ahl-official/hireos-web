@@ -223,48 +223,16 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
         processAudioBlob(audioBlob);
       };
 
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      audioContextRef.current = audioContext;
-      const analyser = audioContext.createAnalyser();
-      analyserRef.current = analyser;
-      analyser.fftSize = 256;
-      const source = audioContext.createMediaStreamSource(stream);
-      source.connect(analyser);
-
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      silenceStartRef.current = null;
-
-      const detectSilence = () => {
-        if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') return;
-        analyser.getByteFrequencyData(dataArray);
-        const sum = dataArray.reduce((acc, val) => acc + val, 0);
-        const average = sum / dataArray.length;
-
-        if (average < SILENCE_THRESHOLD) {
-          if (silenceStartRef.current === null) {
-            silenceStartRef.current = Date.now();
-          } else if (Date.now() - silenceStartRef.current > SILENCE_TIMEOUT_MS) {
-            stopRecordingAndProcess();
-            return;
-          }
-        } else {
-          silenceStartRef.current = null;
-        }
-
-        rafRef.current = requestAnimationFrame(detectSilence);
-      };
-
       mediaRecorder.start();
       setIsRecording(true);
-      setStatusMessage('Listening for your response...');
-      detectSilence();
+      setStatusMessage('Listening for your response... (tap to stop)');
     } catch (error) {
       console.error('Recording failed:', error);
       setAudioError('Unable to start microphone recording. Please allow microphone access and try again.');
       setStatusMessage('Microphone access required.');
       setIsRecording(false);
     }
-  }, [isRecording, processAudioBlob, stopRecordingAndProcess]);
+  }, [isRecording, processAudioBlob]);
 
   const speakQuestion = useCallback((text) => {
     if (ttsLockRef.current) return;

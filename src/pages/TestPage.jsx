@@ -503,8 +503,8 @@ export default function TestPage() {
                     <div key={i} className="w-1.5 bg-red-400 rounded-full" style={{ animation: `audioBar 0.5s ease-in-out infinite`, animationDelay: `${i * 0.07}s`, height: `${20 + Math.abs(Math.sin(i * 0.7)) * 80}%` }} />
                   ))}
                 </div>
-                <p className="text-red-400 text-sm font-semibold">🎙 Listening — speak your answer</p>
-                <p className="text-slate-600 text-xs">Will stop automatically after 2.5s of silence</p>
+                <p className="text-red-400 text-sm font-semibold">🎙 Recording — tap to stop when done</p>
+                <p className="text-slate-600 text-xs">You control when to stop</p>
               </div>
             )}
             {isProcessingAudio && (
