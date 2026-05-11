@@ -120,6 +120,21 @@ export const generateDetailedSummary = async (questions, candidateAnswers, perQu
   }
 };
 
+export const saveCandidateSummary = async (candidateId, summaryData) => {
+  try {
+    const res = await post({ 
+      action: 'saveCandidateSummary',
+      candidateId,
+      summary: typeof summaryData === 'string' ? summaryData : JSON.stringify(summaryData)
+    });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.data;
+  } catch (error) {
+    console.error('Error saving candidate summary:', error);
+    throw error;
+  }
+};
+
 export const processAudioReview = async (payload) => {
   try {
     const res = await post({ action: 'processAudioReview', ...payload });

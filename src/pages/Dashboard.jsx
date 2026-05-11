@@ -13,6 +13,7 @@ import {
   generateQuestions,
   regenerateReport,
   generateDetailedSummary,
+  saveCandidateSummary,
   deleteCandidate,
   deleteCandidates,
   getAllAudioReviews,
@@ -269,6 +270,28 @@ function CandidateDetailPanel({ candidateId, onClose }) {
         return;
       }
 
+      // Check if summary already exists and is cached
+      if (detail.detailedSummary) {
+        try {
+          const cached = typeof detail.detailedSummary === 'string' 
+            ? JSON.parse(detail.detailedSummary) 
+            : detail.detailedSummary;
+          if (!ignore) {
+            setDetailedSummary({
+              summary: cached.summary || '',
+              recommendation: cached.recommendation || '',
+              greenFlags: normalizeFlagItems(cached.greenFlags),
+              redFlags: normalizeFlagItems(cached.redFlags),
+            });
+            setLoadingSummary(false);
+          }
+          return; // Exit early - use cached summary
+        } catch (e) {
+          console.log('Cached summary invalid, regenerating...');
+        }
+      }
+
+      // Generate summary only if not cached
       try {
         setLoadingSummary(true);
         const result = await generateDetailedSummary(
@@ -280,12 +303,25 @@ function CandidateDetailPanel({ candidateId, onClose }) {
         );
 
         if (!ignore) {
-          setDetailedSummary({
+          const summaryData = {
             summary: result?.summary || '',
             recommendation: result?.recommendation || '',
-            greenFlags: normalizeFlagItems(result?.greenFlags),
-            redFlags: normalizeFlagItems(result?.redFlags),
+            greenFlags: result?.greenFlags || [],
+            redFlags: result?.redFlags || [],
+          };
+          
+          setDetailedSummary({
+            ...summaryData,
+            greenFlags: normalizeFlagItems(summaryData.greenFlags),
+            redFlags: normalizeFlagItems(summaryData.redFlags),
           });
+
+          // Save to database for future use
+          try {
+            await saveCandidateSummary(candidateId, summaryData);
+          } catch (saveErr) {
+            console.warn('Could not cache summary:', saveErr);
+          }
         }
       } catch (err) {
         console.error('Detailed summary generation failed:', err);
@@ -301,13 +337,52 @@ function CandidateDetailPanel({ candidateId, onClose }) {
 
     loadDetailedSummary();
     return () => { ignore = true; };
-  }, [detail]);
+  }, [detail, candidateId]);
 
   const scoreColor = (s) => {
     const n = Number(s);
     if (n >= 70) return 'text-emerald-600';
     if (n >= 40) return 'text-amber-600';
     return 'text-red-600';
+  };
+
+  const handleRegenerateSummary = async () => {
+    if (!detail || loadingSummary) return;
+    
+    try {
+      setLoadingSummary(true);
+      const result = await generateDetailedSummary(
+        detail.questions,
+        detail.candidateAnswers,
+        detail.perQuestionScores || [],
+        detail.questionTypes || [],
+        detail.topics || []
+      );
+
+      const summaryData = {
+        summary: result?.summary || '',
+        recommendation: result?.recommendation || '',
+        greenFlags: result?.greenFlags || [],
+        redFlags: result?.redFlags || [],
+      };
+
+      setDetailedSummary({
+        ...summaryData,
+        greenFlags: normalizeFlagItems(summaryData.greenFlags),
+        redFlags: normalizeFlagItems(summaryData.redFlags),
+      });
+
+      // Save updated summary
+      try {
+        await saveCandidateSummary(candidateId, summaryData);
+      } catch (saveErr) {
+        console.warn('Could not save regenerated summary:', saveErr);
+      }
+    } catch (err) {
+      console.error('Error regenerating summary:', err);
+    } finally {
+      setLoadingSummary(false);
+    }
   };
 
   const handleDownloadPdf = async () => {
@@ -559,6 +634,17 @@ function CandidateDetailPanel({ candidateId, onClose }) {
               >
                 <RefreshCw className={`w-4 h-4 ${regeneratingReport ? 'animate-spin' : ''}`} />
                 {regeneratingReport ? 'Regenerating...' : 'Regenerate Report'}
+              </button>
+            )}
+            {detail && !loading && detail.status === 'Completed' && (
+              <button
+                onClick={handleRegenerateSummary}
+                disabled={loadingSummary}
+                title="Force regenerate AI summary (costs tokens)"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-60"
+              >
+                <RefreshCw className={`w-4 h-4 ${loadingSummary ? 'animate-spin' : ''}`} />
+                {loadingSummary ? 'Analyzing...' : 'Refresh Summary'}
               </button>
             )}
             <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">

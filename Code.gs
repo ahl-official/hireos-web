@@ -14,7 +14,7 @@ const HIREOS_SPREADSHEET_ID = PropertiesService.getScriptProperties().getPropert
 // Column index reference (0-based):
 // 0:ID, 1:Name, 2:Email, 3:WhatsApp, 4:Questions, 5:CorrectAnswers,
 // 6:Topics, 7:Difficulty, 8:CandidateAnswers, 9:PerQuestionScores,
-// 10:Score, 11:TabSwitches, 12:Status, 13:Timestamp, 14:Position, 15:TimeLimit, 16:SubmittedAt, 17:QuestionTypes
+// 10:Score, 11:TabSwitches, 12:Status, 13:Timestamp, 14:Position, 15:TimeLimit, 16:SubmittedAt, 17:QuestionTypes, 18:DetailedSummary
 
 const HR_QUESTIONS = [
   {
@@ -812,7 +812,7 @@ Requirements:
               id: r[0], name: r[1], email: r[2], wp: r[3],
               questions: r[4], correctAnswers: r[5], topics: r[6], difficulty: r[7],
               candidateAnswers: r[8], perQuestionScores: r[9],
-              score: r[10], tabSwitches: r[11], status: r[12], timestamp: r[13], position: r[14] || '', timeLimit: r[15] || 15, submittedAt: r[16] || '', questionTypes: r[17] || ''
+              score: r[10], tabSwitches: r[11], status: r[12], timestamp: r[13], position: r[14] || '', timeLimit: r[15] || 15, submittedAt: r[16] || '', questionTypes: r[17] || '', detailedSummary: r[18] || ''
             }
           });
         }
@@ -844,6 +844,21 @@ Requirements:
         }
       }
       return createResponse({ status: 'success', deleted });
+    }
+
+    if (action === 'saveCandidateSummary') {
+      const candidateId = data.candidateId;
+      const summaryData = data.summary; // JSON string or object
+      const rows = sheet.getDataRange().getValues();
+      
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][0] === candidateId) {
+          // Column 18 (0-based) is DetailedSummary
+          sheet.getRange(i + 1, 19).setValue(typeof summaryData === 'string' ? summaryData : JSON.stringify(summaryData));
+          return createResponse({ status: 'success', data: { saved: true } });
+        }
+      }
+      return createResponse({ status: 'error', message: 'Candidate not found' });
     }
 
     return createResponse({ status: 'error', message: 'Invalid action' });
