@@ -39,21 +39,20 @@
 ## 📁 Project Structure
 
 ```
-HR_test/
 ├── public/
 ├── src/
 │   ├── pages/
 │   │   ├── Dashboard.jsx      # HR Dashboard (Generate + Results tabs)
+│   │   ├── Interview.jsx      # Internal preview / interview page
 │   │   └── TestPage.jsx       # Candidate Assessment Page
 │   ├── utils/
 │   │   ├── pdfParser.js       # PDF text extraction using pdfjs-dist
-│   │   ├── openai.js          # OpenRouter API calls (generate & grade)
-│   │   └── googleSheets.js    # Apps Script API calls
+│   │   └── googleSheets.js    # Apps Script proxy + candidate data API calls
 │   ├── App.jsx                # Router setup
 │   ├── main.jsx               # App entry point
 │   └── index.css              # Tailwind CSS imports
-├── Code.gs                    # Google Apps Script backend code
-├── .env.example               # Template for environment variables
+├── Code.gs                    # Google Apps Script backend + OpenRouter integration
+├── .env                      # Local environment variables
 ├── tailwind.config.js
 ├── postcss.config.js
 └── vite.config.js
@@ -72,8 +71,8 @@ HR_test/
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/hireos.git
-cd hireos
+git clone https://github.com/ahl-official/hireos-ai-interview.git
+cd hireos-ai-interview
 ```
 
 ### 2. Install Dependencies
@@ -82,15 +81,12 @@ npm install
 ```
 
 ### 3. Set Up Environment Variables
-```bash
-# Copy the example file
-copy .env.example .env
-```
-Open the `.env` file and fill in your values:
+Create a `.env` file in the project root if one does not already exist, then add your Apps Script URL:
 ```env
-VITE_OPENAI_API_KEY=your_openrouter_api_key_here
 VITE_GOOGLE_APP_SCRIPT_URL=your_apps_script_url_here
 ```
+
+> Note: The OpenRouter API key is configured on the Google Apps Script side, not in the frontend source. You can set it in Script Properties or replace the placeholder in `Code.gs`.
 
 ### 4. Set Up Google Apps Script (Backend)
 
@@ -161,8 +157,8 @@ HR views full report in the Results Dashboard
 
 ## ⚠️ Security Notes
 
-- **API Key Exposure**: The OpenRouter API key is used client-side (in the browser). This is acceptable for internal/trusted HR use. For a public deployment, consider moving API calls to a backend server (e.g. Express.js or Next.js API routes).
-- **Never commit `.env`** — it is listed in `.gitignore` and will never be pushed to GitHub.
+- **API Key Exposure**: The OpenRouter API key is used on the Google Apps Script backend (`Code.gs`), not in the browser source. Keep your Apps Script properties secret and do not expose the key publicly.
+- **Never commit `.env`** — it is listed in `.gitignore` and should not be pushed to GitHub.
 
 ---
 

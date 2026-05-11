@@ -91,6 +91,90 @@ export const getCandidateDetails = async (id) => {
   }
 };
 
+export const regenerateReport = async (id) => {
+  try {
+    const res = await post({ action: 'regenerateReport', id });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.data;
+  } catch (error) {
+    console.error('Error regenerating report:', error);
+    throw error;
+  }
+};
+
+export const generateDetailedSummary = async (questions, candidateAnswers, perQuestionScores, questionTypes, topics) => {
+  try {
+    const res = await post({ 
+      action: 'generateDetailedSummary',
+      questions,
+      candidateAnswers,
+      perQuestionScores,
+      questionTypes,
+      topics
+    });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.data;
+  } catch (error) {
+    console.error('Error generating detailed summary:', error);
+    throw error;
+  }
+};
+
+export const processAudioReview = async (payload) => {
+  try {
+    const res = await post({ action: 'processAudioReview', ...payload });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.data;
+  } catch (error) {
+    console.error('Error processing audio review:', error);
+    throw error;
+  }
+};
+
+export const evaluateAudioTurn = async (audioBase64, format = 'webm') => {
+  try {
+    const res = await post({ action: 'evaluateAudioTurn', audioBase64, format });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.text;
+  } catch (error) {
+    console.error('Error evaluating audio turn:', error);
+    throw error;
+  }
+};
+
+export const getAllAudioReviews = async () => {
+  try {
+    const res = await post({ action: 'getAllAudioReviews' });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.data || [];
+  } catch (error) {
+    console.error('Error fetching audio reviews:', error);
+    throw error;
+  }
+};
+
+export const getAudioReviewDetails = async (id) => {
+  try {
+    const res = await post({ action: 'getAudioReviewDetails', id });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.data || null;
+  } catch (error) {
+    console.error('Error fetching audio review details:', error);
+    throw error;
+  }
+};
+
+export const regenerateAudioReview = async (id) => {
+  try {
+    const res = await post({ action: 'regenerateAudioReview', id });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.data;
+  } catch (error) {
+    console.error('Error regenerating audio review:', error);
+    throw error;
+  }
+};
+
 export const deleteCandidate = async (id) => {
   try {
     const res = await post({ action: 'deleteCandidate', id });

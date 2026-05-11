@@ -25,5 +25,17 @@ dist-ssr
 
 # Environment variables — NEVER upload this!
 .env
-.env.local
-.env.production
+.env.*
+
+# Build output
+dist
+dist-ssr
+.vite
+
+# Local runtime files
+*.local
+.cache
+coverage
+
+# Deploy / cloud
+.vercel
