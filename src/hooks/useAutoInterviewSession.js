@@ -216,10 +216,8 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
               setStatusMessage('I could not capture a clear answer. Please re-record manually.');
             }
           } else {
-            // Show answer review panel instead of auto-accepting
-            setPendingAnswer(cleaned);
-            setReviewingAnswer(true);
-            setStatusMessage('Review your answer');
+            // Auto-accept the answer - no review panel needed
+            handleAnswerAccepted(cleaned);
           }
         } catch (error) {
           console.error('Audio processing failed:', error);

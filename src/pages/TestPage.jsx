@@ -2,7 +2,6 @@
 import { useParams } from 'react-router-dom';
 import { getTest, submitTest, gradeTest } from '../utils/googleSheets';
 import { useAutoInterviewSession } from '../hooks/useAutoInterviewSession';
-import { AnswerReviewPanel } from '../components/AnswerReviewPanel';
 import {
   AlertTriangle, CheckCircle, Shield, Timer,
   Mic, Volume2
@@ -41,11 +40,7 @@ export default function TestPage() {
     speakQuestion,
     toggleRecording,
     handleReRecord,
-    handleDoneAndNext,
-    reviewingAnswer,
-    pendingAnswer,
-    confirmAnswerLooksGood,
-    reRecordCurrentAnswer
+    handleDoneAndNext
   } = useAutoInterviewSession(questions, introAccepted && systemCheckPassed);
 
   const browserSupported = typeof window !== 'undefined' && 'MediaRecorder' in window && 'speechSynthesis' in window && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
@@ -620,19 +615,6 @@ export default function TestPage() {
             Submit all & finish
           </button>
         </div>
-
-          {/* ── Answer Review (Inline Card) ── */}
-        {reviewingAnswer && pendingAnswer && (
-          <AnswerReviewPanel
-            question={questions[currentQuestionIndex]}
-            answerText={pendingAnswer}
-            questionIndex={currentQuestionIndex}
-            totalQuestions={questions.length}
-            onLooksGood={confirmAnswerLooksGood}
-            onReRecord={reRecordCurrentAnswer}
-            autoAcceptSeconds={5}
-          />
-        )}
 
         {status === 'error' && (
           <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 p-4 rounded-2xl">
