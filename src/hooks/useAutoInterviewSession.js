@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { evaluateAudioTurn } from '../utils/googleSheets';
 
 const FILLER_WORDS = ['um', 'uh', 'hm', 'hmm', 'ah', 'oh', 'like', 'you know', 'so', 'actually', 'right', 'okay', 'ok', 'i mean'];
 const FILLER_REGEX = new RegExp(`\\b(?:${FILLER_WORDS.join('|')})\\b`, 'gi');
@@ -188,9 +187,9 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
       reader.readAsDataURL(blob);
       reader.onloadend = async () => {
         try {
-          let base64 = reader.result.toString().replace(/^data:(.*,)?/, '');
-          if ((base64.length % 4) > 0) base64 += '='.repeat(4 - (base64.length % 4));
-          const rawText = await evaluateAudioTurn(base64, 'webm');
+          // Use Web Speech API for transcription (browser-native, FREE)
+          // We already have the transcript from the live recognition during recording
+          const rawText = liveTranscript || interimTranscript || '';
           const cleaned = cleanTranscript(rawText);
           const validation = validateTranscript(rawText, currentQuestionIndex);
           setLastTranscript(rawText || '');
