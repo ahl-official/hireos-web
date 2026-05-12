@@ -621,6 +621,19 @@ export default function TestPage() {
           </button>
         </div>
 
+          {/* ── Answer Review (Inline Card) ── */}
+        {reviewingAnswer && pendingAnswer && (
+          <AnswerReviewPanel
+            question={questions[currentQuestionIndex]}
+            answerText={pendingAnswer}
+            questionIndex={currentQuestionIndex}
+            totalQuestions={questions.length}
+            onLooksGood={confirmAnswerLooksGood}
+            onReRecord={reRecordCurrentAnswer}
+            autoAcceptSeconds={5}
+          />
+        )}
+
         {status === 'error' && (
           <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 p-4 rounded-2xl">
             {errorMessage}
@@ -628,24 +641,18 @@ export default function TestPage() {
         )}
       </main>
 
-      {/* Answer Review Panel */}
-      {reviewingAnswer && pendingAnswer && (
-        <AnswerReviewPanel
-          question={questions[currentQuestionIndex]}
-          answerText={pendingAnswer}
-          questionIndex={currentQuestionIndex}
-          totalQuestions={questions.length}
-          onLooksGood={confirmAnswerLooksGood}
-          onReRecord={reRecordCurrentAnswer}
-          autoAcceptSeconds={5}
-        />
-      )}
-
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         @keyframes audioBar {
           0%, 100% { transform: scaleY(0.3); opacity: 0.6; }
           50% { transform: scaleY(1); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-in-out;
         }
       `}</style>
     </div>
