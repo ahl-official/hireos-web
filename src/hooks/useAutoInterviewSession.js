@@ -162,19 +162,27 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
 
   const stopRecordingAndProcess = useCallback(async () => {
     if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') return;
-    mediaRecorderRef.current.stop();
-    setIsRecording(false);
-    if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
-    if (streamRef.current) streamRef.current.getTracks().forEach((track) => track.stop());
-
-    // Stop speech recognition
+    
+    // Stop speech recognition first to finalize the transcript
     if (speechRecognitionRef.current) {
       speechRecognitionRef.current.stop();
       speechRecognitionRef.current = null;
     }
+    
+    // Give speech recognition a moment to finalize
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Now stop the media recorder
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
+    if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
+    if (streamRef.current) streamRef.current.getTracks().forEach((track) => track.stop());
   }, []);
 
   const processAudioBlob = useCallback(async (blob) => {
+    // Capture the current transcript values BEFORE clearing state
+    const capturedTranscript = finalTranscriptRef.current || '';
+    
     setIsProcessingAudio(true);
     setStatusMessage('Processing your answer...');
     setLastTranscript('');
@@ -187,9 +195,8 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
       reader.readAsDataURL(blob);
       reader.onloadend = async () => {
         try {
-          // Use Web Speech API for transcription (browser-native, FREE)
-          // We already have the transcript from the live recognition during recording
-          const rawText = liveTranscript || interimTranscript || '';
+          // Use the captured transcript from Web Speech API recognition
+          const rawText = capturedTranscript || '';
           const cleaned = cleanTranscript(rawText);
           const validation = validateTranscript(rawText, currentQuestionIndex);
           setLastTranscript(rawText || '');
@@ -269,7 +276,6 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
         recognition.interimResults = true;
         recognition.lang = 'en-US';
         finalTranscriptRef.current = ''; // Reset final transcript
-        finalTranscriptRef.current = ''; // Reset final transcript
 
         recognition.onresult = (event) => {
           let interimTranscript = '';
@@ -277,14 +283,19 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
           for (let i = event.resultIndex; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
-              finalTranscriptRef.current += transcript;
+              finalTranscriptRef.current += transcript + ' ';
             } else {
               interimTranscript += transcript;
             }
           }
 
-          setLiveTranscript(finalTranscriptRef.current);
+          setLiveTranscript(finalTranscriptRef.current.trim());
           setInterimTranscript(interimTranscript);
+        };
+
+        recognition.onend = () => {
+          // Finalize the transcript when speech recognition ends
+          setLiveTranscript(finalTranscriptRef.current.trim());
         };
 
         recognition.onerror = (event) => {
