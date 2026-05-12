@@ -6,7 +6,6 @@ const AUDIO_REVIEW_SHEET_NAME = 'AudioReviews';
 const DRIVE_ROOT_FOLDER_NAME = 'HireOS';
 const AUDIO_DRIVE_FOLDER_NAME = 'Audio Files';
 const PDF_DRIVE_FOLDER_NAME = 'Audio Review PDFs';
-const DEFAULT_TRANSCRIPTION_MODEL = 'openai/whisper-large-v3-turbo';
 const DEFAULT_REPORT_MODEL = 'openai/gpt-4o-mini';
 const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
 const HIREOS_SPREADSHEET_ID = PropertiesService.getScriptProperties().getProperty('HIREOS_SPREADSHEET_ID') || '';
@@ -270,41 +269,7 @@ function callOpenRouterJson(messages, model) {
   return parseAIResponse(json.choices[0].message.content);
 }
 
-function callOpenRouterTranscription(audioBase64, format, model) {
-  if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY === 'YOUR_OPENROUTER_API_KEY_HERE') {
-    throw new Error('OpenRouter API key is missing. Set OPENROUTER_API_KEY in Apps Script Script Properties or replace the placeholder in Code.gs.');
-  }
 
-  const payload = {
-    input_audio: {
-      data: audioBase64,
-      format: format
-    },
-    model: model || DEFAULT_TRANSCRIPTION_MODEL
-  };
-
-  const options = {
-    method: 'post',
-    contentType: 'application/json',
-    headers: { 'Authorization': 'Bearer ' + OPENROUTER_API_KEY },
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true
-  };
-
-  const response = UrlFetchApp.fetch('https://openrouter.ai/api/v1/audio/transcriptions', options);
-  const responseText = response.getContentText();
-  const json = JSON.parse(responseText);
-
-  if (json.error) {
-    throw new Error('OpenRouter STT Error: ' + json.error.message);
-  }
-
-  if (response.getResponseCode() >= 400) {
-    throw new Error('OpenRouter STT Error: ' + responseText);
-  }
-
-  return json;
-}
 
 function buildAudioInterviewReport(record) {
   const messages = [
@@ -677,19 +642,7 @@ Requirements:
       return createResponse({ status: 'error', message: 'Candidate not found' });
     }
 
-    if (action === 'evaluateAudioTurn') {
-      const audioBase64 = data.audioBase64;
-      const format = data.format || 'webm';
-      if (!audioBase64) {
-        return createResponse({ status: 'error', message: 'No audio provided.' });
-      }
-      try {
-        const transcription = callOpenRouterTranscription(audioBase64, format, DEFAULT_TRANSCRIPTION_MODEL);
-        return createResponse({ status: 'success', text: transcription.text || '' });
-      } catch (err) {
-        return createResponse({ status: 'error', message: err.toString() });
-      }
-    }
+
 
     if (action === 'processAudioReview') {
       if (!data.name || !data.role) {
@@ -706,7 +659,7 @@ Requirements:
       audioReviewSheet.appendRow([
         id, data.name, data.role, data.hrNotes || '',
         data.audioFileName, data.audioMimeType || '', '', '',
-        '', DEFAULT_TRANSCRIPTION_MODEL, '', '', '',
+        '', 'web-speech-api', '', '', '',
         '', '', 'Processing', timestamp, timestamp, ''
       ]);
 
@@ -726,11 +679,6 @@ Requirements:
 
           const format = getAudioFormat(data.audioMimeType, data.audioFileName);
           safeAudioName = data.audioFileName || `${sanitizeFileNamePart(data.name, 'candidate')}-${sanitizeFileNamePart(data.role, 'role')}-${Date.now()}.${format}`;
-
-          if (!transcript) {
-            const transcription = callOpenRouterTranscription(data.audioBase64, format, data.transcriptionModel || DEFAULT_TRANSCRIPTION_MODEL);
-            transcript = transcription.text || '';
-          }
         }
 
         const report = buildAudioInterviewReport({
@@ -751,7 +699,7 @@ Requirements:
           audioFileId,
           audioFileUrl,
           transcript,
-          data.transcriptionModel || DEFAULT_TRANSCRIPTION_MODEL,
+          'web-speech-api',
           JSON.stringify(report),
           report.recommendation || '',
           report.finalVerdict || '',
