@@ -3,28 +3,46 @@ import { Mic, Wifi, Loader2, CheckCircle, AlertTriangle, ArrowRight, Laptop, Glo
 
 function CheckRow({ icon: Icon, label, subtitle, checkStatus }) {
   return (
-    <div className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
-      checkStatus === 'passed' ? 'bg-emerald-500/8 border-emerald-500/20' :
-      checkStatus === 'failed' ? 'bg-red-500/8 border-red-500/20' :
-      'bg-white/5 border-white/10'
+    <div className={`flex items-center justify-between p-5 rounded-2xl border-2 transition-all duration-300 group ${
+      checkStatus === 'passed' 
+        ? 'bg-gradient-to-r from-emerald-500/10 to-emerald-400/5 border-emerald-500/40 shadow-lg shadow-emerald-500/10 scale-[1.02]' :
+      checkStatus === 'failed' 
+        ? 'bg-gradient-to-r from-red-500/10 to-red-400/5 border-red-500/40 shadow-lg shadow-red-500/10' :
+        'bg-gradient-to-r from-indigo-500/8 to-indigo-400/3 border-indigo-500/20'
     }`}>
       <div className="flex items-center gap-4">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-          checkStatus === 'passed' ? 'bg-emerald-500/15 text-emerald-400' :
-          checkStatus === 'failed' ? 'bg-red-500/15 text-red-400' :
-          'bg-indigo-500/15 text-indigo-400'
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+          checkStatus === 'passed' ? 'bg-emerald-500/25 text-emerald-300 shadow-lg shadow-emerald-500/20' :
+          checkStatus === 'failed' ? 'bg-red-500/25 text-red-300 shadow-lg shadow-red-500/20' :
+          'bg-indigo-500/20 text-indigo-300'
         }`}>
-          <Icon className="w-5 h-5" />
+          <Icon className={`w-6 h-6 transition-transform ${checkStatus === 'passed' ? 'animate-bounce' : ''}`} />
         </div>
-        <div>
-          <p className="font-semibold text-white text-sm">{label}</p>
-          <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
+        <div className="flex-1">
+          <p className="font-bold text-white text-sm leading-tight">{label}</p>
+          <p className={`text-xs mt-1 font-medium transition-colors ${
+            checkStatus === 'checking' ? 'text-slate-400 animate-pulse' :
+            checkStatus === 'passed' ? 'text-emerald-300' :
+            checkStatus === 'failed' ? 'text-red-300' :
+            'text-slate-400'
+          }`}>{subtitle}</p>
         </div>
       </div>
-      <div className="shrink-0 ml-3">
-        {checkStatus === 'checking' && <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />}
-        {checkStatus === 'passed' && <CheckCircle className="w-5 h-5 text-emerald-400" />}
-        {checkStatus === 'failed' && <AlertTriangle className="w-5 h-5 text-red-400" />}
+      <div className="shrink-0 ml-4">
+        {checkStatus === 'checking' && (
+          <div className="relative w-6 h-6 flex items-center justify-center">
+            <div className="absolute inset-0 bg-indigo-400 rounded-full animate-ping opacity-75" />
+            <Loader2 className="w-5 h-5 text-indigo-300 animate-spin relative z-10" />
+          </div>
+        )}
+        {checkStatus === 'passed' && (
+          <div className="animate-scaleIn">
+            <CheckCircle className="w-6 h-6 text-emerald-400 drop-shadow-lg" />
+          </div>
+        )}
+        {checkStatus === 'failed' && (
+          <AlertTriangle className="w-6 h-6 text-red-400 drop-shadow-lg" />
+        )}
       </div>
     </div>
   );
@@ -113,24 +131,65 @@ export default function SystemCheck({ onComplete }) {
     micStatus === 'passed' &&
     networkStatus === 'passed';
 
+  // Count passed checks
+  const passedCount = [deviceStatus, browserStatus, micStatus, networkStatus].filter(s => s === 'passed').length;
+  const totalChecks = 4;
+
   return (
-    <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#0f1117] via-[#1a1d2e] to-[#0f1117] flex items-center justify-center p-4">
+      <style>{`
+        @keyframes scaleIn {
+          from { transform: scale(0.5); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        .animate-scaleIn {
+          animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slideUp {
+          animation: slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+      `}</style>
+
       <div className="w-full max-w-md">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-indigo-600/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-500/20">
-            <div className="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-black text-sm">H</span>
+        <div className="text-center mb-8 animate-slideUp">
+          <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-3xl flex items-center justify-center mx-auto mb-6 border-2 border-indigo-500/40 shadow-2xl shadow-indigo-500/20">
+            <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center">
+              <span className="text-indigo-600 font-black text-lg">H</span>
             </div>
           </div>
-          <h2 className="text-2xl font-bold text-white">System Check</h2>
-          <p className="text-slate-400 text-sm mt-2">
-            Making sure your device is ready for the AI Interview
+          <h2 className="text-3xl font-black text-white mb-2">System Check</h2>
+          <p className="text-slate-300 text-sm font-medium">
+            Verifying your device for the interview
           </p>
         </div>
 
+        {/* Progress Indicator */}
+        <div className="mb-6 animate-slideUp" style={{ animationDelay: '0.1s' }}>
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="flex-1 h-1 bg-gradient-to-r from-indigo-600 to-indigo-400 rounded-full transition-all duration-500" style={{ width: `${(passedCount / totalChecks) * 100}%` }} />
+            <span className="text-xs font-bold text-indigo-300 bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-500/30">
+              {passedCount}/{totalChecks}
+            </span>
+          </div>
+          <div className="flex gap-1.5">
+            {[...Array(totalChecks)].map((_, i) => (
+              <div
+                key={i}
+                className={`h-2 rounded-full transition-all duration-500 flex-1 ${
+                  i < passedCount ? 'bg-gradient-to-r from-emerald-500 to-emerald-400 shadow-lg shadow-emerald-500/50' : 'bg-slate-700'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
         {/* Card */}
-        <div className="bg-[#1a1d2e] border border-white/8 rounded-3xl p-6 space-y-4 shadow-2xl shadow-black/40">
+        <div className="bg-gradient-to-br from-[#1a1d2e] to-[#0f1117] border-2 border-white/8 rounded-3xl p-8 space-y-4 shadow-2xl shadow-black/60 backdrop-blur-sm animate-slideUp" style={{ animationDelay: '0.2s' }}>
           <CheckRow
             icon={Laptop}
             label="Device"
@@ -169,27 +228,40 @@ export default function SystemCheck({ onComplete }) {
           />
 
           {errorMsg && (
-            <div className="p-4 bg-red-500/10 text-red-300 text-sm rounded-xl border border-red-500/20 flex items-start gap-3">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
-              <p>{errorMsg}</p>
+            <div className="p-4 bg-gradient-to-r from-red-500/15 to-red-400/5 text-red-200 text-sm rounded-xl border-2 border-red-500/30 flex items-start gap-3 animate-slideUp shadow-lg shadow-red-500/10">
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-red-400 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-semibold mb-1">Setup Required</p>
+                <p className="text-red-100 text-xs">{errorMsg}</p>
+              </div>
             </div>
           )}
 
           <button
             onClick={onComplete}
             disabled={!allPassed}
-            className="w-full mt-2 py-3.5 rounded-2xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-900/50 flex items-center justify-center gap-2"
+            className={`w-full mt-4 py-4 rounded-2xl text-sm font-bold text-white transition-all duration-300 flex items-center justify-center gap-2 shadow-lg ${
+              allPassed 
+                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-indigo-900/50 hover:shadow-indigo-800/60 hover:scale-[1.02] active:scale-[0.98]' 
+                : 'bg-slate-700 opacity-50 cursor-not-allowed'
+            }`}
           >
             {allPassed ? (
-              <><span>Continue to Interview</span><ArrowRight className="w-4 h-4" /></>
+              <>
+                <span>Continue to Interview</span>
+                <ArrowRight className="w-5 h-5" />
+              </>
             ) : (
-              <><Loader2 className="w-4 h-4 animate-spin" /><span>Checking system...</span></>
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Checking system...</span>
+              </>
             )}
           </button>
         </div>
 
-        <p className="text-center text-slate-600 text-xs mt-6">
-          This assessment is monitored. Ensure you are in a quiet environment.
+        <p className="text-center text-slate-500 text-xs mt-8 font-medium">
+          🔒 This assessment is monitored. Ensure you're in a quiet environment.
         </p>
       </div>
     </div>
