@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mic, Wifi, Loader2, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Mic, Wifi, Loader2, CheckCircle, AlertTriangle, ArrowRight, Laptop, Globe } from 'lucide-react';
 
 function CheckRow({ icon: Icon, label, subtitle, checkStatus }) {
   return (
@@ -31,12 +31,43 @@ function CheckRow({ icon: Icon, label, subtitle, checkStatus }) {
 }
 
 export default function SystemCheck({ onComplete }) {
+  const [deviceStatus, setDeviceStatus] = useState('checking');
+  const [browserStatus, setBrowserStatus] = useState('checking');
   const [micStatus, setMicStatus] = useState('checking');
   const [networkStatus, setNetworkStatus] = useState('checking');
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     const runChecks = async () => {
+      // 1. Check Device Type (Laptop / Desktop only)
+      const ua = navigator.userAgent || '';
+      const uaData = navigator.userAgentData?.mobile;
+      const mobilePattern = /Android|iPhone|iPad|iPod|Mobile|Tablet|Silk|Kindle|BlackBerry|Opera Mini/i;
+      const isMobileLike = typeof uaData === 'boolean' ? uaData : mobilePattern.test(ua);
+
+      if (isMobileLike) {
+        setDeviceStatus('failed');
+        setErrorMsg('This interview is allowed on laptop or desktop only. Please open the link on a laptop with Chrome.');
+        setBrowserStatus('failed');
+        setMicStatus('failed');
+        setNetworkStatus('failed');
+        return;
+      }
+      setDeviceStatus('passed');
+
+      // 2. Check Browser (Chrome only)
+      const isChrome = /Chrome\//i.test(ua) && !/OPR\//i.test(ua) && !/Brave\//i.test(ua);
+      const supportedBrowser = isChrome;
+
+      if (!supportedBrowser) {
+        setBrowserStatus('failed');
+        setErrorMsg('Please use Google Chrome on laptop/desktop. Unsupported browser detected.');
+        setMicStatus('failed');
+        setNetworkStatus('failed');
+        return;
+      }
+      setBrowserStatus('passed');
+
       // 1. Check Microphone
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -49,7 +80,7 @@ export default function SystemCheck({ onComplete }) {
         return;
       }
 
-      // 2. Check Network Speed (> 500kbps)
+      // 4. Check Network Speed (> 500kbps)
       try {
         let isFastEnough = true;
         if (navigator.connection && navigator.connection.downlink) {
@@ -76,7 +107,11 @@ export default function SystemCheck({ onComplete }) {
     runChecks();
   }, []);
 
-  const allPassed = micStatus === 'passed' && networkStatus === 'passed';
+  const allPassed =
+    deviceStatus === 'passed' &&
+    browserStatus === 'passed' &&
+    micStatus === 'passed' &&
+    networkStatus === 'passed';
 
   return (
     <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
@@ -96,6 +131,24 @@ export default function SystemCheck({ onComplete }) {
 
         {/* Card */}
         <div className="bg-[#1a1d2e] border border-white/8 rounded-3xl p-6 space-y-4 shadow-2xl shadow-black/40">
+          <CheckRow
+            icon={Laptop}
+            label="Device"
+            subtitle={
+              deviceStatus === 'checking' ? 'Detecting device type...' :
+              deviceStatus === 'passed' ? 'Laptop/Desktop detected' : 'Mobile/Tablet not allowed'
+            }
+            checkStatus={deviceStatus}
+          />
+          <CheckRow
+            icon={Globe}
+            label="Browser"
+            subtitle={
+              browserStatus === 'checking' ? 'Checking browser compatibility...' :
+              browserStatus === 'passed' ? 'Google Chrome detected' : 'Use Google Chrome'
+            }
+            checkStatus={browserStatus}
+          />
           <CheckRow
             icon={Mic}
             label="Microphone"

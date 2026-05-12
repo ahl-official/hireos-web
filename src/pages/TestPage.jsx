@@ -2,10 +2,10 @@
 import { useParams } from 'react-router-dom';
 import { getTest, submitTest, gradeTest } from '../utils/googleSheets';
 import { useAutoInterviewSession } from '../hooks/useAutoInterviewSession';
+import { AnswerReviewPanel } from '../components/AnswerReviewPanel';
 import {
   AlertTriangle, CheckCircle, Shield, Timer,
-  Mic, Volume2, ChevronRight, ChevronLeft, Send,
-  MicOff
+  Mic, Volume2
 } from 'lucide-react';
 import SystemCheck from '../components/SystemCheck';
 
@@ -17,7 +17,7 @@ export default function TestPage() {
   const [questions, setQuestions] = useState([]);
   const [correctAnswers, setCorrectAnswers] = useState([]);
   const [topics, setTopics] = useState([]);
-  const [difficulty, setDifficulty] = useState([]);
+  const [, setDifficulty] = useState([]);
   const [questionTypes, setQuestionTypes] = useState([]);
   const [status, setStatus] = useState('loading');
   const [tabSwitches, setTabSwitches] = useState(0);
@@ -27,9 +27,7 @@ export default function TestPage() {
 
   const {
     currentQuestionIndex,
-    setCurrentQuestionIndex,
     answers,
-    setAnswers,
     isSpeaking,
     isRecording,
     isProcessingAudio,
@@ -37,15 +35,20 @@ export default function TestPage() {
     statusMessage,
     needsManualRetry,
     lastTranscript,
+    liveTranscript,
+    interimTranscript,
     audioError,
     speakQuestion,
     toggleRecording,
     handleReRecord,
     handleDoneAndNext,
-    handleNext
+    reviewingAnswer,
+    pendingAnswer,
+    confirmAnswerLooksGood,
+    reRecordCurrentAnswer
   } = useAutoInterviewSession(questions, introAccepted && systemCheckPassed);
 
-  const browserSupported = typeof window !== 'undefined' && 'MediaRecorder' in window && 'speechSynthesis' in window;
+  const browserSupported = typeof window !== 'undefined' && 'MediaRecorder' in window && 'speechSynthesis' in window && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
   const playIntro = useCallback(() => {
     const name = candidateName.trim();
@@ -70,12 +73,6 @@ export default function TestPage() {
       setIntroAccepted(true);
     }
   }, [candidateName]);
-
-  useEffect(() => {
-    if (status === 'ready' && systemCheckPassed && !introAccepted) {
-      setErrorMessage('Tap begin to hear the introduction.');
-    }
-  }, [introAccepted, status, systemCheckPassed]);
 
   const handleSubmit = useCallback(async (e, autoSubmit = false) => {
     if (e?.preventDefault) e.preventDefault();
@@ -294,6 +291,8 @@ export default function TestPage() {
     return <SystemCheck onComplete={() => setSystemCheckPassed(true)} />;
   }
 
+  const introHint = status === 'ready' && systemCheckPassed && !introAccepted ? 'Tap begin to hear the introduction.' : '';
+
   // ── Intro Screen ──
   if (status === 'ready' && systemCheckPassed && !introAccepted) {
     return (
@@ -332,6 +331,9 @@ export default function TestPage() {
             >
               Begin Interview
             </button>
+            {introHint && (
+              <p className="mt-4 text-center text-xs text-slate-500">{introHint}</p>
+            )}
           </div>
         </div>
       </div>
@@ -341,10 +343,8 @@ export default function TestPage() {
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
   const currentAnswer = answers[currentQuestionIndex] || '';
   const currentTopic = topics[currentQuestionIndex];
-  const currentDiff = difficulty[currentQuestionIndex];
   const answeredCount = Object.values(answers).filter(a => a?.trim().length > 0).length;
   const isTimeLow = timeLeft !== null && timeLeft < 60;
-  const diffLabel = { medium: 'Medium', hard: 'Hard', very_hard: 'Very Hard' };
 
   return (
     <div className="min-h-screen bg-[#060810] flex flex-col" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -505,6 +505,17 @@ export default function TestPage() {
                 </div>
                 <p className="text-red-400 text-sm font-semibold">🎙 Recording — tap to stop when done</p>
                 <p className="text-slate-600 text-xs">You control when to stop</p>
+                {(liveTranscript || interimTranscript) && (
+                  <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-lg text-left">
+                    <p className="text-xs text-slate-500 font-semibold mb-1">Live Transcript:</p>
+                    <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
+                      {liveTranscript}
+                      {interimTranscript && (
+                        <span className="text-slate-400 italic">{interimTranscript}</span>
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             {isProcessingAudio && (
@@ -616,6 +627,19 @@ export default function TestPage() {
           </div>
         )}
       </main>
+
+      {/* Answer Review Panel */}
+      {reviewingAnswer && pendingAnswer && (
+        <AnswerReviewPanel
+          question={questions[currentQuestionIndex]}
+          answerText={pendingAnswer}
+          questionIndex={currentQuestionIndex}
+          totalQuestions={questions.length}
+          onLooksGood={confirmAnswerLooksGood}
+          onReRecord={reRecordCurrentAnswer}
+          autoAcceptSeconds={5}
+        />
+      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');

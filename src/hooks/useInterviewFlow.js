@@ -45,6 +45,7 @@ export function useInterviewFlow() {
     workSummary: ''
   });
   const [cvText, setCvText] = useState('');
+  const [fileName, setFileName] = useState('');
   const [fileLoading, setFileLoading] = useState(false);
   const [techQuestions, setTechQuestions] = useState([]);
   const [timeLimit, setTimeLimit] = useState(15);
@@ -60,6 +61,7 @@ export function useInterviewFlow() {
   const handleFile = useCallback(async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    setFileName(file.name);
     setFileLoading(true);
 
     try {
@@ -180,6 +182,7 @@ export function useInterviewFlow() {
     setAnswer,
     cvText,
     setCvText,
+    fileName,
     fileLoading,
     techQuestions,
     timeLimit,

@@ -9,13 +9,31 @@ const post = (payload) => axios.post(SCRIPT_URL, payload, {
 // ==========================================
 // AI ACTIONS (via Apps Script proxy)
 // ==========================================
-export const generateQuestions = async (cvText, position = '', timeLimit = 15) => {
+export const generateQuestions = async (cvText, position = '', timeLimit = 15, options = {}) => {
   try {
-    const res = await post({ action: 'generateQuestions', cvText, position, timeLimit });
+    const res = await post({
+      action: 'generateQuestions',
+      cvText,
+      position,
+      timeLimit,
+      mustCheckSkills: options.mustCheckSkills || '',
+      customQuestions: options.customQuestions || ''
+    });
     if (res.data.status === 'error') throw new Error(res.data.message);
     return res.data.data;
   } catch (error) {
     console.error('Error generating questions:', error);
+    throw error;
+  }
+};
+
+export const generateICPTest = async (payload) => {
+  try {
+    const res = await post(payload);
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.data;
+  } catch (error) {
+    console.error('Error generating ICP test:', error);
     throw error;
   }
 };

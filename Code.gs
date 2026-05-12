@@ -75,15 +75,6 @@ const HR_QUESTIONS = [
   }
 ];
 
-function getTechQuestionCount(timeLimit) {
-  const normalized = Number(timeLimit) || 15;
-  if (normalized <= 15) return 2;
-  if (normalized <= 30) return 3;
-  if (normalized <= 45) return 4;
-  if (normalized <= 60) return 5;
-  return 6;
-}
-
 function buildTechQuestions(aiData, count) {
   return {
     questions: Array.isArray(aiData?.questions) ? aiData.questions.slice(0, count) : [],
@@ -163,6 +154,33 @@ function parseStoredValue(value, fallback) {
   } catch {
     return fallback;
   }
+}
+
+function normalizeListInput(value) {
+  if (value == null || value === '') return [];
+  if (Array.isArray(value)) {
+    return value.map(item => String(item || '').trim()).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => String(item || '').trim()).filter(Boolean);
+      }
+    } catch {
+      // Fall through to newline/comma splitting for freeform input.
+    }
+
+    return trimmed
+      .split(/\r?\n|,/)
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+
+  return [String(value).trim()].filter(Boolean);
 }
 
 function getOrCreateFolder(parentFolder, name) {
@@ -382,7 +400,26 @@ function doPost(e) {
     // AI ACTIONS
     // ==========================================
     if (action === 'generateQuestions') {
-        const techQuestionCount = getTechQuestionCount(data.timeLimit || data.techQuestionCount || 15);
+      const techQuestionCount = 4;
+
+      // Extract optional HR requirement fields
+      const mustCheckSkills = normalizeListInput(data.mustCheckSkills);
+      const customQuestions = normalizeListInput(data.customQuestions);
+      const totalTechQuestionCount = techQuestionCount + customQuestions.length;
+
+      // Build requirement context for the prompt
+      let requirementContext = '';
+      if (mustCheckSkills.length > 0) {
+        requirementContext += `\n\nMUST VERIFY SKILLS:\n${mustCheckSkills.map(skill => `- ${skill}`).join('\n')}\nEnsure at least one question directly tests each of these skills.`;
+      }
+      if (customQuestions.length > 0) {
+        requirementContext += `\n\nCUSTOM QUESTIONS TO INCLUDE:\n${customQuestions.map(q => `- ${q}`).join('\n')}\nInclude these exact questions in the interview.`;
+      }
+
+      const customQuestionBlock = customQuestions.length > 0
+        ? `\n\nMANDATORY CUSTOM QUESTIONS:\n${customQuestions.map(q => `- ${q}`).join('\n')}\nThese questions must appear verbatim in the final question list, and matching correct answers must be provided for each one.`
+        : '';
+
       const messages = [
         {
           role: 'system',
@@ -390,12 +427,28 @@ function doPost(e) {
         },
         {
           role: 'user',
-            content: `Carefully analyze the following CV and generate exactly ${techQuestionCount} technical interview questions for the ${data.position || 'job role'}.\n\nRules:\n1. Questions must be SPECIFIC to the candidate's actual listed projects, tools, and experience.\n2. Include a MIX of difficulty: some medium, some hard, at least one very hard.\n3. At least ${Math.ceil(techQuestionCount / 2)} questions must be SCENARIO-BASED.\n4. Questions must test REAL understanding, not definitions.\n5. Each correct answer should be a detailed, expert-level explanation.\n\nReturn a JSON object with these exact keys:\n- "questions": array of exactly ${techQuestionCount} question strings\n- "correct_answers": array of exactly ${techQuestionCount} detailed answer strings\n- "difficulty": array of exactly ${techQuestionCount} difficulty levels ("medium", "hard", or "very_hard")\n- "topics": array of exactly ${techQuestionCount} topic strings\n\nCV:\n${data.cvText}`
+          content: `Carefully analyze the following CV and generate exactly ${totalTechQuestionCount} technical interview questions for the ${data.position || 'job role'}.
+
+Rules:
+1. Questions must be SPECIFIC to the candidate's actual listed projects, tools, and experience.
+2. Include a MIX of difficulty: some medium, some hard, at least one very hard.
+3. At least ${Math.ceil(totalTechQuestionCount / 2)} questions must be SCENARIO-BASED.
+4. Questions must test REAL understanding, not definitions.
+5. Each correct answer should be a detailed, expert-level explanation.${requirementContext}${customQuestionBlock}
+
+Return a JSON object with these exact keys:
+- "questions": array of exactly ${totalTechQuestionCount} question strings
+- "correct_answers": array of exactly ${totalTechQuestionCount} detailed answer strings
+- "difficulty": array of exactly ${totalTechQuestionCount} difficulty levels ("medium", "hard", or "very_hard")
+- "topics": array of exactly ${totalTechQuestionCount} topic strings
+
+CV:
+${data.cvText}`
         }
       ];
-      
+
       const aiData = callOpenRouter(messages);
-      const tech = buildTechQuestions(aiData, techQuestionCount);
+      const tech = buildTechQuestions(aiData, totalTechQuestionCount);
       const combined = {
         questions: HR_QUESTIONS.map(q => q.question).concat(tech.questions),
         correct_answers: HR_QUESTIONS.map(q => q.correctAnswer).concat(tech.correctAnswers),
@@ -413,7 +466,6 @@ function doPost(e) {
       const questionsData = data.questions.map((q, i) => ({
         question: q,
         topic: data.topics[i] || `Question ${i + 1}`,
-        correct_answer: data.correctAnswers[i],
         candidate_answer: data.candidateAnswers[i] || '(no answer given)',
         question_type: data.questionTypes?.[i] || (i < (data.hrQuestionCount || 0) ? 'hr' : 'technical')
       }));

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   UploadCloud, CheckCircle, Copy, MessageCircle, Loader2,
   RefreshCw, AlertTriangle, ListOrdered, FilePlus2, Users,
@@ -11,6 +11,7 @@ import {
   getAllCandidates,
   getCandidateDetails,
   generateQuestions,
+  generateICPTest,
   regenerateReport,
   generateDetailedSummary,
   saveCandidateSummary,
@@ -86,6 +87,79 @@ const toPercentScore = (value) => {
 
 const AUDIO_MAX_BYTES = 20 * 1024 * 1024;
 const AUDIO_FILE_PATTERN = /\.(mp3|wav|m4a|aac|ogg|oga|flac|webm|mp4|mpeg|mpga|amr|3gp|mkv|mov|aif|aiff|caf)$/i;
+const DOCX_FILE_PATTERN = /\.docx$/i;
+const PDF_FILE_PATTERN = /\.pdf$/i;
+
+const cleanExtractedText = (value) => String(value || '')
+  .replace(/\u0000/g, ' ')
+  .replace(/\r/g, '\n')
+  .replace(/\n{3,}/g, '\n\n')
+  .trim();
+
+const extractTextFromUploadedFile = async (uploadedFile) => {
+  const fileName = uploadedFile?.name || '';
+  const fileType = uploadedFile?.type || '';
+  const isPdf = fileType === 'application/pdf' || PDF_FILE_PATTERN.test(fileName);
+  const isDocx = fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || DOCX_FILE_PATTERN.test(fileName);
+
+  if (isPdf) {
+    const text = await extractTextFromPDF(uploadedFile);
+    return cleanExtractedText(text);
+  }
+
+  if (isDocx) {
+    // For this client-side preview, we only need a lightweight text read from the document payload.
+    const raw = await uploadedFile.text();
+    return cleanExtractedText(raw.replace(/<[^>]*>/g, ' '));
+  }
+
+  throw new Error('Only PDF or DOCX files are supported.');
+};
+
+const parseIcrPreview = (text) => {
+  const lines = String(text || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const findSectionItems = (headerRegex) => {
+    const startIndex = lines.findIndex((line) => headerRegex.test(line));
+    if (startIndex === -1) return [];
+
+    const items = [];
+    for (let i = startIndex + 1; i < lines.length; i += 1) {
+      const line = lines[i];
+      if (/^[A-Za-z][A-Za-z\s]{2,40}:$/.test(line) || /^trait\s*\d/i.test(line)) break;
+      if (/^[-*•]|^\d+[.)]/.test(line)) {
+        items.push(line.replace(/^[-*•\d.\s)]+/, '').trim());
+      } else if (items.length === 0 && line.length > 2) {
+        items.push(line);
+      }
+      if (items.length >= 3) break;
+    }
+    return items.filter(Boolean);
+  };
+
+  const roleLine = lines.find((line) => /^role\s*[:\-]/i.test(line));
+  const role = roleLine
+    ? roleLine.replace(/^role\s*[:\-]\s*/i, '').trim()
+    : (lines[0] || 'Role not detected');
+
+  const traits = [1, 2, 3].map((n) => {
+    const idx = lines.findIndex((line) => new RegExp(`^trait\\s*${n}\\s*[:\\-]?`, 'i').test(line));
+    if (idx === -1) return '';
+    const sameLine = lines[idx].replace(new RegExp(`^trait\\s*${n}\\s*[:\\-]?\\s*`, 'i'), '').trim();
+    if (sameLine) return sameLine;
+    return lines[idx + 1] || '';
+  }).filter(Boolean).slice(0, 3);
+
+  return {
+    role: role || 'Role not detected',
+    traits,
+    redFlags: findSectionItems(/red\s*flag/i),
+    skills: findSectionItems(/mandatory\s*skills?/i),
+  };
+};
 
 const buildReportSummary = (detail) => {
   if (!detail) return '';
@@ -224,7 +298,7 @@ function CandidateDetailPanel({ candidateId, onClose }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState('');
   const [downloadingPdf, setDownloadingPdf] = useState(false);
-  const [regeneratingReport, setRegeneratingReport] = useState(false);
+  const [regeneratingFullReport, setRegeneratingFullReport] = useState(false);
   const [reportNote, setReportNote] = useState('');
   const [detailedSummary, setDetailedSummary] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
@@ -286,7 +360,7 @@ function CandidateDetailPanel({ candidateId, onClose }) {
             setLoadingSummary(false);
           }
           return; // Exit early - use cached summary
-        } catch (e) {
+        } catch {
           console.log('Cached summary invalid, regenerating...');
         }
       }
@@ -346,17 +420,34 @@ function CandidateDetailPanel({ candidateId, onClose }) {
     return 'text-red-600';
   };
 
-  const handleRegenerateSummary = async () => {
-    if (!detail || loadingSummary) return;
+  const handleRegenerateFullReport = async () => {
+    if (!detail || regeneratingFullReport) return;
     
     try {
-      setLoadingSummary(true);
+      setRegeneratingFullReport(true);
+      setReportNote('');
+      
+      // Step 1: Regenerate report (re-grade all answers)
+      const updated = await regenerateReport(detail.id);
+      const parsedDetail = {
+        ...updated,
+        questions: parseJsonOrArray(updated.questions),
+        correctAnswers: parseJsonOrArray(updated.correctAnswers),
+        candidateAnswers: parseJsonOrArray(updated.candidateAnswers),
+        topics: parseJsonOrArray(updated.topics),
+        difficulty: parseJsonOrArray(updated.difficulty),
+        perQuestionScores: parseJsonOrArray(updated.perQuestionScores),
+        questionTypes: parseJsonOrArray(updated.questionTypes),
+      };
+      setDetail(parsedDetail);
+      
+      // Step 2: Regenerate AI summary
       const result = await generateDetailedSummary(
-        detail.questions,
-        detail.candidateAnswers,
-        detail.perQuestionScores || [],
-        detail.questionTypes || [],
-        detail.topics || []
+        parsedDetail.questions,
+        parsedDetail.candidateAnswers,
+        parsedDetail.perQuestionScores || [],
+        parsedDetail.questionTypes || [],
+        parsedDetail.topics || []
       );
 
       const summaryData = {
@@ -378,10 +469,13 @@ function CandidateDetailPanel({ candidateId, onClose }) {
       } catch (saveErr) {
         console.warn('Could not save regenerated summary:', saveErr);
       }
+      
+      setReportNote('Full report regenerated successfully.');
     } catch (err) {
-      console.error('Error regenerating summary:', err);
+      console.error('Regenerate full report failed:', err);
+      setReportNote('Could not regenerate the full report.');
     } finally {
-      setLoadingSummary(false);
+      setRegeneratingFullReport(false);
     }
   };
 
@@ -393,6 +487,7 @@ function CandidateDetailPanel({ candidateId, onClose }) {
       const safeName = (detail.name || 'candidate-report').replace(/[^a-z0-9-_]+/gi, '-').toLowerCase();
       const safeRole = (detail.position || detail.role || 'report').replace(/[^a-z0-9-_]+/gi, '-').toLowerCase() || 'report';
       const downloadName = `${safeName}-${safeRole}.pdf`;
+      const generatedAt = detail.timestamp || detail.submittedAt || '';
 
       const questionRows = (detail.questions || []).map((q, i) => {
         const candidateAns = detail.candidateAnswers?.[i] || 'Not answered';
@@ -479,7 +574,7 @@ function CandidateDetailPanel({ candidateId, onClose }) {
           <div class="header">
             <div>
               <h1>${detail.name || 'Candidate Report'}</h1>
-              <div class="sub">Generated: ${new Date(detail.timestamp || Date.now()).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}${detail.submittedAt ? ` • Submitted: ${new Date(detail.submittedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}</div>
+              <div class="sub">Generated: ${generatedAt ? new Date(generatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Unknown'}${detail.submittedAt ? ` • Submitted: ${new Date(detail.submittedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}</div>
             </div>
           </div>
 
@@ -628,23 +723,13 @@ function CandidateDetailPanel({ candidateId, onClose }) {
             )}
             {detail && !loading && (
               <button
-                onClick={handleRegenerateReport}
-                disabled={regeneratingReport}
+                onClick={handleRegenerateFullReport}
+                disabled={regeneratingFullReport}
+                title="Re-grade all answers and regenerate AI summary"
                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60"
               >
-                <RefreshCw className={`w-4 h-4 ${regeneratingReport ? 'animate-spin' : ''}`} />
-                {regeneratingReport ? 'Regenerating...' : 'Regenerate Report'}
-              </button>
-            )}
-            {detail && !loading && detail.status === 'Completed' && (
-              <button
-                onClick={handleRegenerateSummary}
-                disabled={loadingSummary}
-                title="Force regenerate AI summary (costs tokens)"
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-60"
-              >
-                <RefreshCw className={`w-4 h-4 ${loadingSummary ? 'animate-spin' : ''}`} />
-                {loadingSummary ? 'Analyzing...' : 'Refresh Summary'}
+                <RefreshCw className={`w-4 h-4 ${regeneratingFullReport ? 'animate-spin' : ''}`} />
+                {regeneratingFullReport ? 'Regenerating...' : 'Re-gen Full Report'}
               </button>
             )}
             <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-lg transition-colors">
@@ -880,6 +965,7 @@ function AudioReviewDetailPanel({ reviewId, onClose }) {
       const safeName = (detail.name || 'candidate-report').replace(/[^a-z0-9-_]+/gi, '-').toLowerCase();
       const safeRole = (detail.role || 'report').replace(/[^a-z0-9-_]+/gi, '-').toLowerCase() || 'report';
       const downloadName = `audio-review-${safeName}-${safeRole}.pdf`;
+      const generatedAt = detail.timestamp || detail.submittedAt || '';
 
       const renderFlagRows = (items, tone) => items.length
         ? items.map((flag) => `
@@ -929,7 +1015,7 @@ function AudioReviewDetailPanel({ reviewId, onClose }) {
           <div class="header">
             <div>
               <h1>${detail.name || 'Audio Review Report'}</h1>
-              <div class="sub">Generated: ${new Date(detail.timestamp || Date.now()).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+              <div class="sub">Generated: ${generatedAt ? new Date(generatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Unknown'}</div>
             </div>
           </div>
 
@@ -1183,11 +1269,30 @@ function AudioReviewDetailPanel({ reviewId, onClose }) {
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('generate');
-  const [formData, setFormData] = useState({ name: '', wp: '', email: '', position: '', timeLimit: '15' });
+  const [testType, setTestType] = useState('cv');
+  const [formData, setFormData] = useState({
+    name: '',
+    wp: '',
+    position: '',
+    timeLimit: '15',
+    mustCheckSkills: '',
+    customQuestions: ''
+  });
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [generatedCandidateName, setGeneratedCandidateName] = useState('');
+  const [generatedCandidateContact, setGeneratedCandidateContact] = useState('');
   const [testLink, setTestLink] = useState('');
+  const [icpCandidateName, setIcpCandidateName] = useState('');
+  const [icpCandidateContact, setIcpCandidateContact] = useState('');
+  const [icpTimeLimit, setIcpTimeLimit] = useState('30');
+  const [icpInterviewDate, setIcpInterviewDate] = useState('');
+  const [icrText, setIcrText] = useState('');
+  const [icrFile, setIcrFile] = useState(null);
+  const [icpCustomQuestions, setIcpCustomQuestions] = useState('');
+  const [icpStatus, setIcpStatus] = useState('idle');
+  const [icpErrorMessage, setIcpErrorMessage] = useState('');
   const [candidates, setCandidates] = useState([]);
   const [loadingResults, setLoadingResults] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -1284,8 +1389,53 @@ export default function Dashboard() {
 
   const handleFile = (e) => {
     const f = e.target.files[0];
-    if (f && (f.type === 'application/pdf' || f.name.endsWith('.pdf'))) setFile(f);
-    else { alert('Please upload a valid PDF file.'); e.target.value = null; }
+    if (!f) return;
+    const isPdf = f.type === 'application/pdf' || PDF_FILE_PATTERN.test(f.name);
+    const isDocx = f.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || DOCX_FILE_PATTERN.test(f.name);
+    if (!isPdf && !isDocx) {
+      alert('Please upload a valid PDF or DOCX file.');
+      e.target.value = null;
+      return;
+    }
+    if (f.size > 10 * 1024 * 1024) {
+      alert('Please upload a file smaller than 10MB.');
+      e.target.value = null;
+      return;
+    }
+    setFile(f);
+  };
+
+  const handleIcrFile = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+
+    const isPdf = f.type === 'application/pdf' || PDF_FILE_PATTERN.test(f.name);
+    const isDocx = f.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || DOCX_FILE_PATTERN.test(f.name);
+    if (!isPdf && !isDocx) {
+      alert('Please upload a valid PDF or DOCX file.');
+      e.target.value = null;
+      return;
+    }
+    if (f.size > 10 * 1024 * 1024) {
+      alert('Please upload a file smaller than 10MB.');
+      e.target.value = null;
+      return;
+    }
+
+    try {
+      setIcpStatus('extracting');
+      setIcpErrorMessage('');
+      const text = await extractTextFromUploadedFile(f);
+      setIcrFile(f);
+      setIcrText(text);
+      setIcpStatus('idle');
+    } catch (err) {
+      console.error(err);
+      setIcpErrorMessage('Could not parse this ICR file. Please try another PDF or DOCX.');
+      setIcpStatus('error');
+      setIcrFile(null);
+      setIcrText('');
+    }
   };
 
   const handleAudioInput = (e) => {
@@ -1312,16 +1462,21 @@ export default function Dashboard() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file) return alert('Please upload a CV (PDF)');
+    if (!file) return alert('Please upload a CV (PDF or DOCX).');
     if (formData.wp.length !== 10) return alert('Please enter a valid 10-digit mobile number.');
     try {
       setStatus('extracting');
-      const cvText = await extractTextFromPDF(file);
+      const cvText = await extractTextFromUploadedFile(file);
       setStatus('generating');
-      const generated = await generateQuestions(cvText, formData.position, Number(formData.timeLimit));
+      const generated = await generateQuestions(cvText, formData.position, Number(formData.timeLimit), {
+        mustCheckSkills: formData.mustCheckSkills,
+        customQuestions: formData.customQuestions
+      });
       setStatus('saving');
       const response = await addCandidate({
-        name: formData.name, email: formData.email, wp: formData.wp, position: formData.position, timeLimit: formData.timeLimit,
+        name: formData.name, wp: formData.wp, position: formData.position, timeLimit: formData.timeLimit,
+        mustCheckSkills: formData.mustCheckSkills,
+        customQuestions: formData.customQuestions,
         questions: JSON.stringify(generated.questions),
         answers: JSON.stringify(generated.correct_answers),
         topics: JSON.stringify(generated.topics || []),
@@ -1330,10 +1485,50 @@ export default function Dashboard() {
       });
       const testId = response?.id || Date.now().toString();
       setTestLink(`${window.location.origin}/test/${testId}`);
+      setGeneratedCandidateName(formData.name);
+      setGeneratedCandidateContact(formData.wp);
       setStatus('success');
     } catch (err) {
       setErrorMessage(err.message || 'An error occurred.');
       setStatus('error');
+    }
+  };
+
+  const handleICPSubmit = async (e) => {
+    e.preventDefault();
+    if (!icpCandidateName.trim()) return alert('Please enter candidate name.');
+    if (icpCandidateContact.length !== 10) return alert('Please enter a valid 10-digit mobile number.');
+    if (!icrText.trim()) return alert('Please upload and parse the ICR document first.');
+
+    try {
+      setIcpStatus('generating');
+      setIcpErrorMessage('');
+
+      const payload = {
+        testType: 'icp',
+        icrText,
+        candidateName: icpCandidateName,
+        candidateContact: icpCandidateContact,
+        timeLimit: icpTimeLimit,
+        interviewDate: icpInterviewDate,
+        customQuestions: icpCustomQuestions
+          .split('\n')
+          .map((q) => q.trim())
+          .filter(Boolean)
+      };
+
+      const response = await generateICPTest(payload);
+      const icpTestId = response?.id || response?.testId || response?.candidateId || Date.now().toString();
+      const interviewLink = response?.interviewLink || `${window.location.origin}/test/${icpTestId}`;
+
+      setTestLink(interviewLink);
+      setGeneratedCandidateName(icpCandidateName);
+      setGeneratedCandidateContact(icpCandidateContact);
+      setIcpStatus('success');
+    } catch (err) {
+      console.error(err);
+      setIcpErrorMessage(err.message || 'Could not generate the culture-fit test.');
+      setIcpStatus('error');
     }
   };
 
@@ -1393,7 +1588,7 @@ export default function Dashboard() {
   };
 
   const waMessage = () => encodeURIComponent(
-`Hi ${formData.name},
+`Hi ${generatedCandidateName || formData.name || icpCandidateName},
 
 You've been selected for an *AI Screening Assessment*.
 
@@ -1407,6 +1602,8 @@ You've been selected for an *AI Screening Assessment*.
 ${testLink}
 
 Good luck! 🚀`);
+
+  const icrPreview = useMemo(() => parseIcrPreview(icrText), [icrText]);
 
   const completedCount = candidates.filter(c => c.status === 'Completed').length;
   const avgScore = completedCount > 0
@@ -1446,94 +1643,355 @@ Good luck! 🚀`);
         {/* ── GENERATE TAB ── */}
         {activeTab === 'generate' && (
           <div className="flex flex-col items-center">
-            <div className="w-full max-w-lg">
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-extrabold text-slate-900">New Assessment</h1>
-                <p className="text-slate-500 mt-2 text-sm">Upload a CV to auto-generate a personalized technical test</p>
+            <div className="w-full max-w-[680px] space-y-6">
+              <div className="text-center">
+                <h1 className="text-4xl font-extrabold text-slate-900">New assessment</h1>
+                <p className="text-slate-500 mt-2 text-sm">Choose assessment type and fill in the details below</p>
               </div>
-              <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6 sm:p-8">
-                {status === 'success' ? (
-                  <div className="flex flex-col items-center text-center gap-5 py-4">
-                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <CheckCircle className="w-9 h-9 text-emerald-500" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-800">Test Ready!</h3>
-                      <p className="text-slate-500 text-sm mt-1">Share the link with the candidate via WhatsApp</p>
-                    </div>
-                    <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 break-all font-mono">{testLink}</div>
-                    <div className="w-full flex flex-col sm:flex-row gap-3">
-                      <button onClick={copyLink} className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold border transition-all ${copied ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
-                        <Copy className="w-4 h-4" />{copied ? 'Copied!' : 'Copy Link'}
-                      </button>
-                      <a href={`https://wa.me/91${formData.wp}?text=${waMessage()}`} target="_blank" rel="noopener noreferrer"
-                        className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition-all">
-                        <MessageCircle className="w-4 h-4" />Share on WhatsApp
-                      </a>
-                    </div>
-                    <button onClick={() => { setStatus('idle'); setFormData({ name: '', wp: '', email: '', position: '', timeLimit: '15' }); setFile(null); }} className="text-sm text-indigo-600 hover:underline mt-2">
-                      + Generate another test
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleSubmit} className="space-y-5">
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Candidate Name <span className="text-red-500">*</span></label>
-                      <input name="name" type="text" required placeholder="e.g. Rahul Sharma"
-                        className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.name} onChange={handleInput} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Job Position <span className="text-red-500">*</span></label>
-                      <input name="position" type="text" required placeholder="e.g. Frontend Developer"
-                        className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.position} onChange={handleInput} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mobile Number <span className="text-red-500">*</span></label>
-                      <div className="flex rounded-xl overflow-hidden border border-slate-300 focus-within:ring-2 focus-within:ring-indigo-500">
-                        <span className="bg-slate-100 px-3 flex items-center text-sm text-slate-600 border-r border-slate-300 font-medium">+91</span>
-                        <input name="wp" type="text" placeholder="9876543210" maxLength={10}
-                          className="flex-1 px-4 py-2.5 text-sm focus:outline-none"
-                          value={formData.wp} onChange={handleInput} required />
+
+              <div className="w-full rounded-2xl border border-slate-200 bg-white p-1 grid grid-cols-2 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setTestType('cv')}
+                  className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition-all ${testType === 'cv' ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-500 hover:text-slate-700'}`}
+                >
+                  <span>CV-based technical test</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${testType === 'cv' ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>Part 1</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTestType('icp')}
+                  className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold transition-all ${testType === 'icp' ? 'bg-slate-900 text-white shadow-sm' : 'bg-white text-slate-500 hover:text-slate-700'}`}
+                >
+                  <span>ICP culture-fit test</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${testType === 'icp' ? 'border-white/20 bg-white/10 text-white' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>Part 2</span>
+                </button>
+              </div>
+
+              {testType === 'cv' && (
+                <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6 sm:p-8">
+                  {status === 'success' ? (
+                    <div className="flex flex-col items-center text-center gap-5 py-4">
+                      <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-9 h-9 text-emerald-500" />
                       </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-800">Test Ready!</h3>
+                        <p className="text-slate-500 text-sm mt-1">Share the link with the candidate via WhatsApp</p>
+                      </div>
+                      <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 break-all font-mono">{testLink}</div>
+                      <div className="w-full flex flex-col sm:flex-row gap-3">
+                        <button onClick={copyLink} className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold border transition-all ${copied ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
+                          <Copy className="w-4 h-4" />{copied ? 'Copied!' : 'Copy Link'}
+                        </button>
+                        <a href={`https://wa.me/91${generatedCandidateContact || formData.wp}?text=${waMessage()}`} target="_blank" rel="noopener noreferrer"
+                          className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition-all">
+                          <MessageCircle className="w-4 h-4" />Share on WhatsApp
+                        </a>
+                      </div>
+                      <button onClick={() => {
+                        setStatus('idle');
+                        setFormData({
+                          name: '',
+                          wp: '',
+                          position: '',
+                          timeLimit: '15',
+                          mustCheckSkills: '',
+                          customQuestions: ''
+                        });
+                        setGeneratedCandidateName('');
+                        setGeneratedCandidateContact('');
+                        setFile(null);
+                        setTestLink('');
+                      }} className="text-sm text-indigo-600 hover:underline mt-2">
+                        + Generate another test
+                      </button>
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email <span className="text-slate-400 font-normal">(Optional)</span></label>
-                      <input name="email" type="email" placeholder="rahul@example.com"
-                        className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={formData.email} onChange={handleInput} />
+                  ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 mb-3">Candidate details</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Candidate Name <span className="text-red-500">*</span></label>
+                            <input name="name" type="text" required placeholder="e.g. Rahul Sharma" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10" value={formData.name} onChange={handleInput} />
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Mobile Number <span className="text-red-500">*</span></label>
+                            <div className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10">
+                              <div className="flex items-center border-r border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-500">+91</div>
+                              <input name="wp" type="text" placeholder="9876543210" maxLength={10} className="flex-1 px-4 py-3 text-sm text-slate-900 outline-none" value={formData.wp} onChange={handleInput} required />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 mb-3">Assessment setup</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Time Limit <span className="text-red-500">*</span></label>
+                            <select name="timeLimit" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10" value={formData.timeLimit} onChange={handleInput}>
+                              <option value="15">15 Minutes</option>
+                              <option value="30">30 Minutes</option>
+                              <option value="45">45 Minutes</option>
+                              <option value="60">1 Hour</option>
+                              <option value="90">1 Hour 30 Minutes</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Position / Role <span className="text-red-500">*</span></label>
+                            <input name="position" type="text" required placeholder="e.g. Senior Full Stack Developer" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10" value={formData.position} onChange={handleInput} />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 mb-3">CV upload</p>
+                        <label className="group flex min-h-[168px] w-full cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 bg-white px-4 text-center transition-all hover:border-indigo-400 hover:bg-indigo-50/40">
+                          <UploadCloud className="mb-3 h-9 w-9 text-slate-400 transition-colors group-hover:text-indigo-500" />
+                          <span className="text-sm font-semibold text-slate-700 group-hover:text-indigo-700">{file ? file.name : 'Click to upload or drag & drop'}</span>
+                          <span className="mt-1 text-xs text-slate-400">PDF or DOCX — max 10 MB</span>
+                          <input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={handleFile} />
+                        </label>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Question tuning (optional)</p>
+                        <div>
+                          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Must-check skills</label>
+                          <input
+                            name="mustCheckSkills"
+                            type="text"
+                            placeholder="e.g. RAG, OpenRouter, n8n, LangChain"
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
+                            value={formData.mustCheckSkills}
+                            onChange={handleInput}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Custom questions</label>
+                          <textarea
+                            name="customQuestions"
+                            rows={4}
+                            placeholder={"One question per line\nWhat is RAG and when should we use it?\nWhich orchestration tools have you used in production?"}
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 resize-none"
+                            value={formData.customQuestions}
+                            onChange={handleInput}
+                          />
+                        </div>
+                      </div>
+
+                      {status === 'error' && <div className="text-red-600 text-sm bg-red-50 border border-red-200 p-3 rounded-xl">{errorMessage}</div>}
+                      <button type="submit" disabled={status !== 'idle' && status !== 'error'}
+                        className="w-full flex items-center justify-center gap-2 rounded-2xl bg-slate-900 py-3.5 text-sm font-bold text-white transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
+                        {status === 'idle' || status === 'error' ? 'Generate technical test' : (
+                          <><Loader2 className="w-4 h-4 animate-spin" />
+                            {status === 'extracting' ? 'Reading CV...' : status === 'generating' ? 'AI Generating Questions...' : 'Saving...'}</>
+                        )}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {testType === 'icp' && (
+                <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6 sm:p-8">
+                  {icpStatus === 'success' ? (
+                    <div className="flex flex-col items-center text-center gap-5 py-4">
+                      <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-9 h-9 text-emerald-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-800">Culture-fit test ready!</h3>
+                        <p className="text-slate-500 text-sm mt-1">Share the interview link with the candidate</p>
+                      </div>
+                      <div className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 break-all font-mono">{testLink}</div>
+                      <div className="w-full flex flex-col sm:flex-row gap-3">
+                        <button onClick={copyLink} className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold border transition-all ${copied ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-300 text-slate-700 hover:bg-slate-50'}`}>
+                          <Copy className="w-4 h-4" />{copied ? 'Copied!' : 'Copy Link'}
+                        </button>
+                        <a href={`https://wa.me/91${generatedCandidateContact || icpCandidateContact}?text=${waMessage()}`} target="_blank" rel="noopener noreferrer"
+                          className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition-all">
+                          <MessageCircle className="w-4 h-4" />Share on WhatsApp
+                        </a>
+                      </div>
+                      <button onClick={() => {
+                        setIcpStatus('idle');
+                        setIcpCandidateName('');
+                        setIcpCandidateContact('');
+                        setIcpTimeLimit('30');
+                        setIcpInterviewDate('');
+                        setIcrFile(null);
+                        setIcrText('');
+                        setIcpCustomQuestions('');
+                        setGeneratedCandidateName('');
+                        setGeneratedCandidateContact('');
+                        setTestLink('');
+                      }} className="text-sm text-indigo-600 hover:underline mt-2">
+                        + Generate another test
+                      </button>
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Time Limit <span className="text-red-500">*</span></label>
-                      <select name="timeLimit" className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white" value={formData.timeLimit} onChange={handleInput}>
-                        <option value="15">15 Minutes</option>
-                        <option value="30">30 Minutes</option>
-                        <option value="45">45 Minutes</option>
-                        <option value="60">1 Hour</option>
-                        <option value="90">1 Hour 30 Minutes</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">CV / Resume <span className="text-red-500">*</span></label>
-                      <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-indigo-50 hover:border-indigo-400 transition-all group">
-                        <UploadCloud className="w-8 h-8 text-slate-400 group-hover:text-indigo-500 transition-colors mb-2" />
-                        <span className="text-sm text-slate-500 group-hover:text-indigo-600 font-medium">{file ? file.name : 'Click to upload PDF'}</span>
-                        <span className="text-xs text-slate-400 mt-1">PDF only, max 10MB</span>
-                        <input type="file" accept="application/pdf" className="sr-only" onChange={handleFile} />
-                      </label>
-                    </div>
-                    {status === 'error' && <div className="text-red-600 text-sm bg-red-50 border border-red-200 p-3 rounded-xl">{errorMessage}</div>}
-                    <button type="submit" disabled={status !== 'idle' && status !== 'error'}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-md shadow-indigo-200">
-                      {status === 'idle' || status === 'error' ? 'Generate Test →' : (
-                        <><Loader2 className="w-4 h-4 animate-spin" />
-                          {status === 'extracting' ? 'Reading CV...' : status === 'generating' ? 'AI Generating Questions...' : 'Saving...'}</>
-                      )}
-                    </button>
-                  </form>
-                )}
-              </div>
+                  ) : (
+                    <form onSubmit={handleICPSubmit} className="space-y-4">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Candidate details</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Candidate Name <span className="text-red-500">*</span></label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Priya Verma"
+                              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
+                              value={icpCandidateName}
+                              onChange={(e) => setIcpCandidateName(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Mobile Number <span className="text-red-500">*</span></label>
+                            <div className="flex overflow-hidden rounded-2xl border border-slate-200 bg-white focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10">
+                              <div className="flex items-center border-r border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-500">+91</div>
+                              <input
+                                type="text"
+                                placeholder="9876543210"
+                                maxLength={10}
+                                className="flex-1 px-4 py-3 text-sm text-slate-900 outline-none"
+                                value={icpCandidateContact}
+                                onChange={(e) => setIcpCandidateContact(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                required
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Time Limit <span className="text-red-500">*</span></label>
+                            <select
+                              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
+                              value={icpTimeLimit}
+                              onChange={(e) => setIcpTimeLimit(e.target.value)}
+                            >
+                              <option value="20">20 min</option>
+                              <option value="30">30 min</option>
+                              <option value="45">45 min</option>
+                              <option value="60">60 min</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Interview Date</label>
+                            <input
+                              type="date"
+                              className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
+                              value={icpInterviewDate}
+                              onChange={(e) => setIcpInterviewDate(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Ideal Candidate Profile (ICR)</p>
+                        <label className="group flex min-h-[168px] w-full cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-300 bg-white px-4 text-center transition-all hover:border-indigo-400 hover:bg-indigo-50/40">
+                          <UploadCloud className="mb-3 h-9 w-9 text-slate-400 transition-colors group-hover:text-indigo-500" />
+                          <span className="text-sm font-semibold text-slate-700 group-hover:text-indigo-700">{icrFile ? icrFile.name : 'Click to upload filled ICR document'}</span>
+                          <span className="mt-1 text-xs text-slate-400">PDF or DOCX — max 10 MB</span>
+                          <input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" onChange={handleIcrFile} />
+                        </label>
+
+                        {icrText && (
+                          <div className="flex items-center gap-2 text-emerald-700 text-sm font-medium">
+                            <CheckCircle2 className="w-4 h-4" />
+                            Parsed successfully
+                          </div>
+                        )}
+
+                        {icrText && (
+                          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 mb-2">Role</p>
+                              <div className="flex flex-wrap gap-2">
+                                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">{icrPreview.role}</span>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 mb-2">Top traits</p>
+                              <div className="flex flex-wrap gap-2">
+                                {(icrPreview.traits.length ? icrPreview.traits : ['No traits detected']).map((item) => (
+                                  <span key={`trait-${item}`} className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">{item}</span>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 mb-2">Red flags</p>
+                              <div className="flex flex-wrap gap-2">
+                                {(icrPreview.redFlags.length ? icrPreview.redFlags : ['No red flags detected']).map((item) => (
+                                  <span key={`red-${item}`} className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">{item}</span>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 mb-2">Skills</p>
+                              <div className="flex flex-wrap gap-2">
+                                {(icrPreview.skills.length ? icrPreview.skills : ['No skills detected']).map((item) => (
+                                  <span key={`skill-${item}`} className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">{item}</span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Question breakdown</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                          {[
+                            { count: 5, label: 'Stability & commitment' },
+                            { count: 4, label: 'Trait-based behavioural' },
+                            { count: 4, label: 'Red flag probes' },
+                            { count: 3, label: 'Culture fit' },
+                            { count: 2, label: 'Situational pressure' },
+                          ].map((item) => (
+                            <div key={item.label} className="rounded-xl border border-slate-200 bg-white p-3 text-center">
+                              <p className="text-lg font-extrabold text-slate-900">{item.count}</p>
+                              <p className="text-[11px] text-slate-500 mt-1 leading-4">{item.label}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-slate-500">18 base questions generated from ICR</p>
+
+                        <div>
+                          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Custom questions</label>
+                          <textarea
+                            rows={4}
+                            placeholder={"One question per line\nWhat kind of team conflict have you handled recently?"}
+                            className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10 resize-none"
+                            value={icpCustomQuestions}
+                            onChange={(e) => setIcpCustomQuestions(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      {icpErrorMessage && <div className="text-red-600 text-sm bg-red-50 border border-red-200 p-3 rounded-xl">{icpErrorMessage}</div>}
+
+                      <button
+                        type="submit"
+                        disabled={icpStatus === 'generating' || icpStatus === 'extracting'}
+                        className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#6c63ff] py-3.5 text-sm font-bold text-white transition-all hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {icpStatus === 'generating' || icpStatus === 'extracting' ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            {icpStatus === 'extracting' ? 'Parsing ICR...' : 'Generating culture-fit test...'}
+                          </>
+                        ) : 'Generate culture-fit test'}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1736,49 +2194,49 @@ Good luck! 🚀`);
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Candidate Name <span className="text-red-500">*</span></label>
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Candidate Name <span className="text-red-500">*</span></label>
                       <input
                         name="name"
                         type="text"
                         required
                         placeholder="e.g. Shagufta Khan"
-                        className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
                         value={audioFormData.name}
                         onChange={handleAudioInput}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Role <span className="text-red-500">*</span></label>
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Role <span className="text-red-500">*</span></label>
                       <input
                         name="role"
                         type="text"
                         required
                         placeholder="e.g. Junior Cosmetology Doctor"
-                        className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
                         value={audioFormData.role}
                         onChange={handleAudioInput}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">HR Notes <span className="text-slate-400 font-normal">(Optional)</span></label>
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">HR Notes <span className="text-slate-400 font-normal normal-case tracking-normal">(Optional)</span></label>
                       <textarea
                         name="hrNotes"
                         rows={4}
                         placeholder="Add any context for the evaluator, such as round type, clinic, or interview focus."
-                        className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                        className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/10"
                         value={audioFormData.hrNotes}
                         onChange={handleAudioInput}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Interview Audio <span className="text-red-500">*</span></label>
-                      <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-indigo-50 hover:border-indigo-400 transition-all group">
-                        <FileAudio className="w-8 h-8 text-slate-400 group-hover:text-indigo-500 transition-colors mb-2" />
-                        <span className="text-sm text-slate-500 group-hover:text-indigo-600 font-medium">{audioFile ? audioFile.name : 'Click to upload audio'}</span>
-                        <span className="text-xs text-slate-400 mt-1">Audio only, max 50MB. Large files upload directly before processing.</span>
+                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Interview Audio <span className="text-red-500">*</span></label>
+                      <label className="group flex min-h-[168px] w-full cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 text-center transition-all hover:border-indigo-400 hover:bg-indigo-50">
+                        <FileAudio className="mb-3 h-9 w-9 text-slate-400 transition-colors group-hover:text-indigo-500" />
+                        <span className="text-sm font-semibold text-slate-700 group-hover:text-indigo-700">{audioFile ? audioFile.name : 'Click to upload audio'}</span>
+                        <span className="mt-1 text-xs text-slate-400">Audio only, max 50MB. Large files upload directly before processing.</span>
                         <input type="file" accept="audio/*" className="sr-only" onChange={handleAudioFile} />
                       </label>
                     </div>
@@ -1788,7 +2246,7 @@ Good luck! 🚀`);
                     <button
                       type="submit"
                       disabled={audioStatus === 'uploading' || audioStatus === 'processing'}
-                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-md shadow-indigo-200"
+                      className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-200 transition-all hover:from-indigo-500 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {audioStatus === 'idle' || audioStatus === 'error' ? (
                         <>Generate Audio Report <Mic className="w-4 h-4" /></>

@@ -3,10 +3,25 @@ import { evaluateAudioTurn } from '../utils/googleSheets';
 
 const FILLER_WORDS = ['um', 'uh', 'hm', 'hmm', 'ah', 'oh', 'like', 'you know', 'so', 'actually', 'right', 'okay', 'ok', 'i mean'];
 const FILLER_REGEX = new RegExp(`\\b(?:${FILLER_WORDS.join('|')})\\b`, 'gi');
-const SILENCE_THRESHOLD = 10;
-const SILENCE_TIMEOUT_MS = 2500;
-const MIN_MEANINGFUL_WORDS = 3;
 const MAX_RETRY_ATTEMPTS = 2;
+
+// Question-aware minimum word thresholds
+// Index corresponds to question position in interview flow
+const QUESTION_MIN_WORDS = [
+  1, // 0: Where are you from? (location) → 1 word
+  1, // 1: Working status? → 1 word
+  1, // 2: Role or left when? → 1 word
+  3, // 3: Why change job? → 3 words (needs explanation)
+  1, // 4: Where staying now? → 1 word (family/alone)
+  3, // 5: What kind of work done? → 3 words (needs summary)
+  3, // 6: Top 3 strengths? → 3 words (needs specifics)
+  3, // 7: Best strength situation? → 3 words (needs story)
+  1, // 8: Current salary? → 1 word (number/range)
+  1, // 9: Expected salary? → 1 word (number/range)
+  1, // 10: Seriously looking long-term? → 1 word (yes/no/maybe)
+  1, // 11: How long stay with us? → 1 word (time period)
+  3  // 12: Under pressure, what do you do? → 3 words (needs approach/story)
+];
 
 const normalizeTranscript = (value) => String(value || '').trim().replace(/[\r\n]+/g, ' ');
 
@@ -23,15 +38,19 @@ export const cleanTranscript = (rawText) => {
   return cleaned;
 };
 
-export const validateTranscript = (rawText) => {
+export const validateTranscript = (rawText, questionIndex = 0) => {
   const cleaned = cleanTranscript(rawText);
   const meaningfulWords = cleaned.split(/\s+/).filter((word) => word.length > 1);
+  
+  // Get minimum words for this specific question
+  const minWords = QUESTION_MIN_WORDS[questionIndex] || 1;
 
   if (!cleaned) {
     return { valid: false, cleaned, reason: 'No speech detected.' };
   }
-  if (meaningfulWords.length < MIN_MEANINGFUL_WORDS) {
-    return { valid: false, cleaned, reason: 'Answer seems too short or only filler.' };
+  if (meaningfulWords.length < minWords) {
+    const wordText = minWords === 1 ? 'at least one word' : `at least ${minWords} words`;
+    return { valid: false, cleaned, reason: `Answer too short. Please provide ${wordText}.` };
   }
   return { valid: true, cleaned, reason: '' };
 };
@@ -72,7 +91,12 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
   const [retryCount, setRetryCount] = useState({});
   const [needsManualRetry, setNeedsManualRetry] = useState(false);
   const [lastTranscript, setLastTranscript] = useState('');
+  const [liveTranscript, setLiveTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
   const [audioError, setAudioError] = useState('');
+  const [reviewingAnswer, setReviewingAnswer] = useState(false);
+  const [pendingAnswer, setPendingAnswer] = useState('');
+  const [autoAcceptCountdown, setAutoAcceptCountdown] = useState(5);
 
   const ttsLockRef = useRef(false);
   const voicesReadyRef = useRef(false);
@@ -81,22 +105,22 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
   const audioChunksRef = useRef([]);
   const streamRef = useRef(null);
   const audioContextRef = useRef(null);
-  const analyserRef = useRef(null);
-  const silenceStartRef = useRef(null);
-  const rafRef = useRef(null);
   const speechStartedRef = useRef(false);
+  const speechRecognitionRef = useRef(null);
+  const finalTranscriptRef = useRef('');
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) return;
     const loadVoices = () => { voicesReadyRef.current = (window.speechSynthesis.getVoices() || []).length > 0; };
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
-    return () => { try { window.speechSynthesis.onvoiceschanged = null; } catch {} };
-  }, []);
-
-  const updateStatus = useCallback((message) => {
-    setStatusMessage(message);
-    setAudioError('');
+    return () => {
+      try {
+        window.speechSynthesis.onvoiceschanged = null;
+      } catch (error) {
+        console.warn('Voice cleanup failed:', error);
+      }
+    };
   }, []);
 
   const speakAcknowledgment = useCallback((message, onEnd) => {
@@ -133,7 +157,6 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
       mediaRecorderRef.current.stop();
     }
     setIsRecording(false);
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (streamRef.current) streamRef.current.getTracks().forEach((track) => track.stop());
     if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
   }, []);
@@ -142,15 +165,22 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
     if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') return;
     mediaRecorderRef.current.stop();
     setIsRecording(false);
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (audioContextRef.current) audioContextRef.current.close().catch(() => {});
     if (streamRef.current) streamRef.current.getTracks().forEach((track) => track.stop());
+
+    // Stop speech recognition
+    if (speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop();
+      speechRecognitionRef.current = null;
+    }
   }, []);
 
   const processAudioBlob = useCallback(async (blob) => {
     setIsProcessingAudio(true);
     setStatusMessage('Processing your answer...');
     setLastTranscript('');
+    setLiveTranscript('');
+    setInterimTranscript('');
     setAudioError('');
 
     try {
@@ -162,7 +192,7 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
           if ((base64.length % 4) > 0) base64 += '='.repeat(4 - (base64.length % 4));
           const rawText = await evaluateAudioTurn(base64, 'webm');
           const cleaned = cleanTranscript(rawText);
-          const validation = validateTranscript(rawText);
+          const validation = validateTranscript(rawText, currentQuestionIndex);
           setLastTranscript(rawText || '');
 
           if (!validation.valid) {
@@ -180,7 +210,10 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
               setStatusMessage('I could not capture a clear answer. Please re-record manually.');
             }
           } else {
-            handleAnswerAccepted(cleaned);
+            // Show answer review panel instead of auto-accepting
+            setPendingAnswer(cleaned);
+            setReviewingAnswer(true);
+            setStatusMessage('Review your answer');
           }
         } catch (error) {
           console.error('Audio processing failed:', error);
@@ -203,6 +236,8 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
   const startRecording = useCallback(async () => {
     if (isRecording) return;
     setAudioError('');
+    setLiveTranscript('');
+    setInterimTranscript('');
 
     try {
       window.speechSynthesis.cancel();
@@ -226,6 +261,40 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
       mediaRecorder.start();
       setIsRecording(true);
       setStatusMessage('Listening for your response... (tap to stop)');
+
+      // Start live speech recognition
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        finalTranscriptRef.current = ''; // Reset final transcript
+        finalTranscriptRef.current = ''; // Reset final transcript
+
+        recognition.onresult = (event) => {
+          let interimTranscript = '';
+
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscriptRef.current += transcript;
+            } else {
+              interimTranscript += transcript;
+            }
+          }
+
+          setLiveTranscript(finalTranscriptRef.current);
+          setInterimTranscript(interimTranscript);
+        };
+
+        recognition.onerror = (event) => {
+          console.error('Speech recognition error:', event.error);
+        };
+
+        recognition.start();
+        speechRecognitionRef.current = recognition;
+      }
     } catch (error) {
       console.error('Recording failed:', error);
       setAudioError('Unable to start microphone recording. Please allow microphone access and try again.');
@@ -287,6 +356,8 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
     cleanupAudioSession();
     setAnswers((prev) => ({ ...prev, [currentQuestionIndex]: undefined }));
     setNeedsManualRetry(false);
+    setLiveTranscript('');
+    setInterimTranscript('');
     questionSessionRef.current[currentQuestionIndex] = false;
     setStatusMessage('Please speak your answer when ready.');
     setTimeout(() => {
@@ -310,6 +381,25 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
     }
   }, [cleanupAudioSession, currentQuestionIndex, questions.length]);
 
+  const confirmAnswerLooksGood = useCallback(() => {
+    if (!pendingAnswer) return;
+    setReviewingAnswer(false);
+    handleAnswerAccepted(pendingAnswer);
+    setPendingAnswer('');
+  }, [pendingAnswer, handleAnswerAccepted]);
+
+  const reRecordCurrentAnswer = useCallback(() => {
+    setReviewingAnswer(false);
+    setPendingAnswer('');
+    setAnswers((prev) => ({ ...prev, [currentQuestionIndex]: undefined }));
+    setLiveTranscript('');
+    setInterimTranscript('');
+    setStatusMessage('Please speak your answer when ready.');
+    setTimeout(() => {
+      startRecording();
+    }, 300);
+  }, [currentQuestionIndex, startRecording]);
+
   return {
     currentQuestionIndex,
     setCurrentQuestionIndex,
@@ -323,11 +413,18 @@ export function useAutoInterviewSession(questions = [], isSessionReady = true) {
     retryCount,
     needsManualRetry,
     lastTranscript,
+    liveTranscript,
+    interimTranscript,
     audioError,
     speakQuestion,
     toggleRecording,
     handleReRecord,
     handleDoneAndNext,
-    handleNext
+    handleNext,
+    reviewingAnswer,
+    setReviewingAnswer,
+    pendingAnswer,
+    confirmAnswerLooksGood,
+    reRecordCurrentAnswer
   };
 }
