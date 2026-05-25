@@ -40,7 +40,7 @@ import { AlertTriangle, Shield, RefreshCw } from 'lucide-react';
 
 export default function TestPage() {
   const { id } = useParams();
-  const [candidateId] = useState(`CAND_${Math.floor(Math.random() * 10000)}`);
+  const [candidateId] = useState(id);
   const [candidateName, setCandidateName] = useState('');
   const [candidateEmail, setCandidateEmail] = useState('');
   const [candidatePosition, setCandidatePosition] = useState('');
