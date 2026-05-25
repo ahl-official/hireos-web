@@ -21,7 +21,7 @@ export const WelcomeScreen = ({ candidateName, onStart, isStarting }) => {
             <div className="absolute inset-0 rounded-full bg-indigo-500 opacity-20 blur-2xl group-hover:opacity-30 transition-all duration-700 animate-pulse"></div>
             <div className="w-24 h-24 rounded-full border border-white/10 bg-[#0d1117] overflow-hidden relative z-10 shadow-2xl shadow-indigo-500/20">
               <img
-                src="/src/assets/alisa_poster.png"
+                src="/alisa_poster.png"
                 alt="Alisa - AI Interviewer"
                 className="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700 scale-[1.1]"
               />

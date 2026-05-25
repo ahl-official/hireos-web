@@ -497,7 +497,7 @@ export default function TestPage() {
                 <AlisaFacePanel
                   isSpeaking={status === INTERVIEW_STATUS.SPEAKING}
                   status={getAlisaStatus()}
-                  posterSrc="/src/assets/alisa_poster.png"
+                  posterSrc="/alisa_poster.png"
                   compact={true}
                 />
               </div>
@@ -579,7 +579,7 @@ export default function TestPage() {
                 <AlisaFacePanel
                   isSpeaking={status === INTERVIEW_STATUS.SPEAKING}
                   status={getAlisaStatus()}
-                  posterSrc="/src/assets/alisa_poster.png"
+                  posterSrc="/alisa_poster.png"
                 />
 
                 <div className="mt-4 w-full p-3 rounded-lg bg-white/[0.01] border border-white/5 opacity-40">

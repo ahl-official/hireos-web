@@ -23,7 +23,7 @@ const AlisaUiLab = () => {
   const sampleTranscript =
     'For keyword significance, I developed a custom TF-IDF variant that prioritized industry-specific terminology found in high-ranking job descriptions. I ensured ranking by cross-referencing candidate skills against these weighted vectors, providing real-time feedback for resume optimization.';
 
-  const assets = { poster: '/src/assets/alisa_poster.png' };
+  const assets = { poster: '/alisa_poster.png' };
 
   useEffect(() => {
     setIsSpeaking(activeTab === 'speaking');
