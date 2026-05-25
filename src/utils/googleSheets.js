@@ -2,9 +2,10 @@ import axios from 'axios';
 
 const SCRIPT_URL = import.meta.env.VITE_GOOGLE_APP_SCRIPT_URL;
 
-const post = (payload) => axios.post(SCRIPT_URL, payload, {
-  headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-});
+const post = (payload) =>
+  axios.post(SCRIPT_URL, payload, {
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+  });
 
 // ==========================================
 // AI ACTIONS (via Apps Script proxy)
@@ -16,8 +17,7 @@ export const generateQuestions = async (cvText, position = '', timeLimit = 15, o
       cvText,
       position,
       timeLimit,
-      mustCheckSkills: options.mustCheckSkills || '',
-      customQuestions: options.customQuestions || ''
+      ...options,
     });
     if (res.data.status === 'error') throw new Error(res.data.message);
     return res.data.data;
@@ -27,26 +27,76 @@ export const generateQuestions = async (cvText, position = '', timeLimit = 15, o
   }
 };
 
-export const generateICPTest = async (payload) => {
+export const addCandidate = async (candidateData) => {
   try {
-    const res = await post(payload);
+    const res = await post({ action: 'addCandidate', ...candidateData });
     if (res.data.status === 'error') throw new Error(res.data.message);
     return res.data.data;
   } catch (error) {
-    console.error('Error generating ICP test:', error);
+    console.error('Error adding candidate:', error);
     throw error;
   }
 };
 
-export const gradeTest = async (questions, correctAnswers, topics, candidateAnswers, questionTypes = []) => {
+export const getActiveICPs = async () => {
   try {
-    const res = await post({ 
-      action: 'gradeTest', 
-      questions, 
-      correctAnswers, 
-      topics, 
+    const res = await post({ action: 'getActiveICPs' });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.icps;
+  } catch (error) {
+    console.error('Error fetching ICPs:', error);
+    throw error;
+  }
+};
+
+export const getAllICPs = async () => {
+  try {
+    const res = await post({ action: 'getAllICPs' });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.icps;
+  } catch (error) {
+    console.error('Error fetching all ICPs:', error);
+    throw error;
+  }
+};
+
+export const getICPById = async (icpId) => {
+  try {
+    const res = await post({ action: 'getICPById', icpId });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.icp;
+  } catch (error) {
+    console.error('Error fetching ICP details:', error);
+    throw error;
+  }
+};
+
+export const saveICP = async (icpData) => {
+  try {
+    const res = await post({ action: 'saveICP', ...icpData });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.icp;
+  } catch (error) {
+    console.error('Error saving ICP:', error);
+    throw error;
+  }
+};
+
+export const gradeTest = async (
+  questions,
+  correctAnswers,
+  topics,
+  candidateAnswers,
+  questionTypes = []
+) => {
+  try {
+    const res = await post({
+      action: 'gradeTest',
+      questions,
+      correctAnswers,
+      topics,
       candidateAnswers,
-      questionTypes 
+      questionTypes,
     });
     if (res.data.status === 'error') throw new Error(res.data.message);
     return res.data.data;
@@ -59,19 +109,11 @@ export const gradeTest = async (questions, correctAnswers, topics, candidateAnsw
 // ==========================================
 // DATABASE ACTIONS
 // ==========================================
-export const addCandidate = async (candidateData) => {
-  try {
-    const res = await post({ ...candidateData, action: 'addCandidate' });
-    return res.data;
-  } catch (error) {
-    console.error('Error adding candidate:', error);
-    throw error;
-  }
-};
-
 export const getTest = async (id) => {
   try {
+    console.log('[googleSheets] Sending getTest request for ID:', id);
     const res = await post({ action: 'getTest', id });
+    console.log('[googleSheets] getTest raw response:', res.data);
     return res.data;
   } catch (error) {
     console.error('Error fetching test:', error);
@@ -85,6 +127,62 @@ export const submitTest = async (submitData) => {
     return res.data;
   } catch (error) {
     console.error('Error submitting test:', error);
+    throw error;
+  }
+};
+
+// ==========================================
+// NEW STT PROOF SYSTEM ACTIONS
+// ==========================================
+export const startNewSTTInterview = async (name, email, position) => {
+  try {
+    const res = await post({ action: 'startNewSTTInterview', name, email, position });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.interviewId;
+  } catch (error) {
+    console.error('Error starting STT interview:', error);
+    throw error;
+  }
+};
+
+export const processAnswerSTT = async (payload) => {
+  try {
+    const res = await post({ action: 'processAnswerSTT', ...payload });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data;
+  } catch (error) {
+    console.error('Error processing STT answer:', error);
+    throw error;
+  }
+};
+
+export const logSTTAudit = async (payload) => {
+  try {
+    const res = await post({ action: 'logSTTAudit', ...payload });
+    return res.data;
+  } catch (error) {
+    console.error('Error logging STT audit:', error);
+    return { status: 'error' }; // Silent fail for audit
+  }
+};
+
+export const gradeSTTInterview = async (interviewId) => {
+  try {
+    const res = await post({ action: 'gradeSTTInterview', interviewId });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.gradeResult;
+  } catch (error) {
+    console.error('Error grading STT interview:', error);
+    throw error;
+  }
+};
+
+export const setupNewSTTSystem = async () => {
+  try {
+    const res = await post({ action: 'setupNewSTTSystem' });
+    return res.data;
+  } catch (error) {
+    console.error('Error setting up STT system:', error);
     throw error;
   }
 };
@@ -120,15 +218,21 @@ export const regenerateReport = async (id) => {
   }
 };
 
-export const generateDetailedSummary = async (questions, candidateAnswers, perQuestionScores, questionTypes, topics) => {
+export const generateDetailedSummary = async (
+  questions,
+  candidateAnswers,
+  perQuestionScores,
+  questionTypes,
+  topics
+) => {
   try {
-    const res = await post({ 
+    const res = await post({
       action: 'generateDetailedSummary',
       questions,
       candidateAnswers,
       perQuestionScores,
       questionTypes,
-      topics
+      topics,
     });
     if (res.data.status === 'error') throw new Error(res.data.message);
     return res.data.data;
@@ -140,10 +244,10 @@ export const generateDetailedSummary = async (questions, candidateAnswers, perQu
 
 export const saveCandidateSummary = async (candidateId, summaryData) => {
   try {
-    const res = await post({ 
+    const res = await post({
       action: 'saveCandidateSummary',
       candidateId,
-      summary: typeof summaryData === 'string' ? summaryData : JSON.stringify(summaryData)
+      summary: typeof summaryData === 'string' ? summaryData : JSON.stringify(summaryData),
     });
     if (res.data.status === 'error') throw new Error(res.data.message);
     return res.data.data;

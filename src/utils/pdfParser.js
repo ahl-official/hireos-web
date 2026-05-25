@@ -1,7 +1,10 @@
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+// Use a robust URL resolution for the PDF.js worker in Vite
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url
+).href;
 
 /**
  * Cleans raw extracted PDF text by:
@@ -14,19 +17,19 @@ const cleanPDFText = (rawText) => {
   const withoutNullBytes = rawText.split('\u0000').join('');
   const printableOnly = Array.from(withoutNullBytes, (character) => {
     const codePoint = character.codePointAt(0);
-    if (codePoint === 0x09 || codePoint === 0x0A || codePoint === 0x0D) return character;
-    if (codePoint >= 0x20 && codePoint <= 0x7E) return character;
-    if (codePoint >= 0xA0) return character;
+    if (codePoint === 0x09 || codePoint === 0x0a || codePoint === 0x0d) return character;
+    if (codePoint >= 0x20 && codePoint <= 0x7e) return character;
+    if (codePoint >= 0xa0) return character;
     return ' ';
   }).join('');
 
   return printableOnly
     .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 2)              // remove single-char artifact lines
-    .filter(line => !/^[^a-zA-Z0-9]{3,}$/.test(line)) // remove symbol-only lines
+    .map((line) => line.trim())
+    .filter((line) => line.length > 2) // remove single-char artifact lines
+    .filter((line) => !/^[^a-zA-Z0-9]{3,}$/.test(line)) // remove symbol-only lines
     .join('\n')
-    .replace(/\n{3,}/g, '\n\n')                   // collapse 3+ blank lines into 2
+    .replace(/\n{3,}/g, '\n\n') // collapse 3+ blank lines into 2
     .trim();
 };
 
@@ -40,10 +43,12 @@ export const extractTextFromPDF = async (file) => {
     const content = await page.getTextContent();
 
     // Use hasEOL to preserve line structure from the PDF layout
-    const pageText = content.items.map(item => {
-      const text = item.str || '';
-      return item.hasEOL ? text + '\n' : text + ' ';
-    }).join('');
+    const pageText = content.items
+      .map((item) => {
+        const text = item.str || '';
+        return item.hasEOL ? text + '\n' : text + ' ';
+      })
+      .join('');
 
     rawText += pageText + '\n';
   }

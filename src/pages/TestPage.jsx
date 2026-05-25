@@ -1,643 +1,709 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { getTest, submitTest, gradeTest } from '../utils/googleSheets';
-import { useAutoInterviewSession } from '../hooks/useAutoInterviewSession';
+import { getTest } from '../utils/googleSheets';
 import {
-  AlertTriangle, CheckCircle, Shield, Timer,
-  Mic, Volume2
-} from 'lucide-react';
-import SystemCheck from '../components/SystemCheck';
+  startInterviewSession,
+  saveInterviewAuditEvent,
+  submitInterview,
+} from '../services/interviewApi';
+import { useInterviewSession } from '../hooks/useInterviewSession';
+import { INTERVIEW_STATUS } from '../utils/interviewStates';
 
+// Layout Components
+import { ProgressBar, InterviewWarning } from '../components/interview/InterviewLayout';
+import AlisaFacePanel from '../components/interview/AlisaFacePanel';
+import InterviewActionBar from '../components/interview/InterviewActionBar';
+
+// State Screens
+import SystemCheck from '../components/SystemCheck';
+import {
+  WelcomeScreen,
+  TutorialGuide,
+  InterviewInstructions,
+  PracticeReadyScreen,
+} from '../components/interview/PreInterviewScreens';
+import {
+  InteractionReady,
+  RecordingCountdown,
+  InteractionSpeaking,
+  InteractionRecording,
+  InteractionProcessing,
+  TranscriptReview,
+} from '../components/interview/InteractionScreens';
+import {
+  FinalReview,
+  SubmittingScreen,
+  CompletionScreen,
+} from '../components/interview/PostInterviewScreens';
+
+import { AlertTriangle, Shield, RefreshCw } from 'lucide-react';
 
 export default function TestPage() {
   const { id } = useParams();
+  const [candidateId] = useState(`CAND_${Math.floor(Math.random() * 10000)}`);
   const [candidateName, setCandidateName] = useState('');
-  const [introAccepted, setIntroAccepted] = useState(false);
+  const [candidateEmail, setCandidateEmail] = useState('');
+  const [candidatePosition, setCandidatePosition] = useState('');
   const [questions, setQuestions] = useState([]);
-  const [correctAnswers, setCorrectAnswers] = useState([]);
-  const [topics, setTopics] = useState([]);
-  const [, setDifficulty] = useState([]);
-  const [questionTypes, setQuestionTypes] = useState([]);
-  const [status, setStatus] = useState('loading');
-  const [tabSwitches, setTabSwitches] = useState(0);
+  const [appStatus, setAppStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [timeLeft, setTimeLeft] = useState(null);
-  const [systemCheckPassed, setSystemCheckPassed] = useState(false);
+  const [sttInterviewId, setSttInterviewId] = useState(null);
+  const [tabSwitches, setTabSwitches] = useState(0);
+  const [voiceDetected, setVoiceDetected] = useState(false);
+  const [lastVoiceTime, setLastVoiceTime] = useState(0);
+  const [silenceDuration, setSilenceDuration] = useState(0);
+  const [submitError, setSubmitError] = useState(null);
+  const [isStartingSession, setIsStartingSession] = useState(false);
+  const [isSystemReady, setIsSystemReady] = useState(false);
+
+  // ── Recording Countdowns ──
+  const [prepTimeLeft, setPrepTimeLeft] = useState(20);
+  const [countdownTimeLeft, setCountdownTimeLeft] = useState(3);
+  const [isCountingDown, setIsCountingDown] = useState(false);
 
   const {
+    status,
+    setStatus,
     currentQuestionIndex,
+    setCurrentQuestionIndex,
     answers,
-    isSpeaking,
-    isRecording,
-    isProcessingAudio,
-    isAcknowledging,
-    statusMessage,
-    needsManualRetry,
-    lastTranscript,
-    liveTranscript,
-    interimTranscript,
     audioError,
+    recordingTime,
+    volumeLevel,
+    transcript,
+    setCurrentTranscript,
+    speak,
     speakQuestion,
-    toggleRecording,
-    handleReRecord,
-    handleDoneAndNext
-  } = useAutoInterviewSession(questions, introAccepted && systemCheckPassed);
+    stopSpeaking,
+    unlockAudio,
+    startAnswerRecording,
+    finishAnswerRecording,
+    retryAnswer,
+    confirmAnswerAction,
+    jumpToQuestion,
+  } = useInterviewSession(questions, sttInterviewId, candidateId, candidateName);
 
-  const browserSupported = typeof window !== 'undefined' && 'MediaRecorder' in window && 'speechSynthesis' in window && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
-
-  const playIntro = useCallback(() => {
-    const name = candidateName.trim();
-    const introText = `Hello ${name || '[Name]'}. I am Alisa, your interviewer. I will ask a few structured questions about your background and experience. Please answer clearly.`;
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      setIntroAccepted(true);
-      return;
-    }
+  // ── Initialization ──
+  const fetchTestData = useCallback(async () => {
+    if (!id) return;
+    setAppStatus('loading');
     try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(introText);
-      const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find(v => v.name.includes('Google') && v.lang.startsWith('en'))
-        || voices.find(v => v.lang.startsWith('en'));
-      if (preferred) utterance.voice = preferred;
-      utterance.rate = 0.92;
-      utterance.pitch = 1.05;
-      utterance.onend = () => setIntroAccepted(true);
-      utterance.onerror = () => setIntroAccepted(true);
-      window.speechSynthesis.speak(utterance);
-    } catch {
-      setIntroAccepted(true);
-    }
-  }, [candidateName]);
+      const data = await getTest(id);
+      if (!data || data.status === 'error') {
+        setAppStatus('error');
+        setErrorMessage(data?.message || 'Assessment not found.');
+        return;
+      }
+      if (data.status === 'Completed') {
+        setAppStatus('completed_already');
+        return;
+      }
 
-  const handleSubmit = useCallback(async (e, autoSubmit = false) => {
-    if (e?.preventDefault) e.preventDefault();
-    if (isRecording) {
-      setErrorMessage('Please stop recording before submitting.');
-      return;
-    }
-    window.speechSynthesis.cancel();
+      console.log('[TestPage] fetchTestData success:', data);
+      setCandidateName((data.name || '').trim());
+      setCandidateEmail(data.email || '');
+      setCandidatePosition(data.position || '');
 
-    const answeredCount = Object.values(answers).filter(a => a?.trim().length > 0).length;
-    if (!autoSubmit && answeredCount < questions.length) {
-      if (!window.confirm(`You have answered ${answeredCount} of ${questions.length} questions. Submit anyway?`)) return;
-    }
+      // Zero-Crash Parsing Helper
+      const safeParse = (val) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'object') return [val];
+        try {
+          const parsed = JSON.parse(val);
+          return Array.isArray(parsed) ? parsed : [parsed];
+        } catch (e) {
+          console.error('[TestPage] Parse error for value:', val);
+          return [];
+        }
+      };
 
-    try {
-      setStatus('grading');
-      const candidateAnswersList = questions.map((_, i) => answers[i] || '');
-      const gradeResult = await gradeTest(questions, correctAnswers, topics, candidateAnswersList, questionTypes);
-      setStatus('submitting');
-      await submitTest({
-        id,
-        candidateAnswers: JSON.stringify(candidateAnswersList),
-        score: gradeResult.overall_score ?? gradeResult.score ?? 0,
-        perQuestionScores: JSON.stringify(gradeResult.per_question_scores || []),
-        tabSwitches,
-        status: 'Completed'
-      });
-      setStatus('success');
-    } catch {
-      setErrorMessage('Failed to submit. Please try again.');
-      setStatus('error');
+      setQuestions(safeParse(data.questions));
+      setTimeLeft(Number(data.timeLimit || 15) * 60);
+      setAppStatus('ready');
+      setStatus(INTERVIEW_STATUS.WELCOME);
+    } catch (err) {
+      console.error('[TestPage] fetchTestData fatal error:', err);
+      setAppStatus('error');
+      setErrorMessage('Failed to load assessment. Technical error encountered.');
     }
-  }, [answers, correctAnswers, id, isRecording, questionTypes, questions, tabSwitches, topics]);
+  }, [id, setStatus]);
 
-  // ── Load test data ──
   useEffect(() => {
-    const fetchTestData = async () => {
-      try {
-        const data = await getTest(id);
-        const parse = (v) => {
-          if (!v) return [];
-          try { return typeof v === 'string' ? JSON.parse(v) : v; } catch { return []; }
-        };
-        const q = parse(data?.questions);
-        if (!q || q.length === 0) {
-          setStatus('error');
-          setErrorMessage('Test not found. Please check your link.');
-          return;
-        }
-        // Block re-submission of already completed tests
-        if (data?.status === 'Completed') {
-          setStatus('already_done');
-          return;
-        }
-        setCandidateName((data?.name || '').trim());
-        setQuestions(q);
-        setCorrectAnswers(parse(data?.answers));
-        setTopics(parse(data?.topics));
-        setDifficulty(parse(data?.difficulty));
-        setQuestionTypes(parse(data?.questionTypes));
-        setTimeLeft(Number(data?.timeLimit || 15) * 60);
-        setStatus('ready');
-      } catch {
-        setStatus('error');
-        setErrorMessage('Could not load your test. Please try again later.');
+    fetchTestData();
+  }, [fetchTestData]);
+
+  // ── Audit ──
+  useEffect(() => {
+    if (sttInterviewId)
+      saveInterviewAuditEvent({
+        interviewId: sttInterviewId,
+        candidateId,
+        eventType: 'INTERVIEW_STARTED',
+      });
+  }, [sttInterviewId, candidateId]);
+
+  // ── Tab Switch ──
+  useEffect(() => {
+    const ignore = [
+      INTERVIEW_STATUS.IDLE,
+      INTERVIEW_STATUS.WELCOME,
+      INTERVIEW_STATUS.COMPLETED,
+      INTERVIEW_STATUS.SYSTEM_CHECK,
+      INTERVIEW_STATUS.TUTORIAL,
+    ];
+    if (ignore.includes(status)) return;
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        setTabSwitches((p) => {
+          const count = p + 1;
+          if (sttInterviewId)
+            saveInterviewAuditEvent({
+              interviewId: sttInterviewId,
+              candidateId,
+              eventType: 'TAB_SWITCH_DETECTED',
+              details: `Tab switch detected. Total: ${count}`,
+              tabSwitches: count,
+            });
+          return count;
+        });
       }
     };
-    fetchTestData();
-  }, [id]);
-
-  // ── Tab-switch protection ──
-  useEffect(() => {
-    if (!systemCheckPassed) return;
-    const onVisibilityChange = () => { if (document.hidden) setTabSwitches(p => p + 1); };
-    const block = (e) => e.preventDefault();
     document.addEventListener('visibilitychange', onVisibilityChange);
-    document.addEventListener('contextmenu', block);
-    document.addEventListener('copy', block);
-    document.addEventListener('cut', block);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      document.removeEventListener('contextmenu', block);
-      document.removeEventListener('copy', block);
-      document.removeEventListener('cut', block);
-    };
-  }, [systemCheckPassed]);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [status, sttInterviewId, candidateId]);
+
+  // ── Silence & Voice Detection ──
+  useEffect(() => {
+    if (volumeLevel > 10) {
+      if (!voiceDetected) setVoiceDetected(true);
+      setLastVoiceTime(recordingTime);
+    } else {
+      if (voiceDetected) setVoiceDetected(false);
+    }
+  }, [volumeLevel, recordingTime, voiceDetected]);
+
+  useEffect(() => {
+    if (status !== INTERVIEW_STATUS.RECORDING) {
+      if (silenceDuration > 0) setSilenceDuration(0);
+      return;
+    }
+    if (voiceDetected) {
+      setSilenceDuration(0);
+    } else {
+      setSilenceDuration(recordingTime - (lastVoiceTime || 0));
+    }
+  }, [status, voiceDetected, recordingTime, lastVoiceTime]);
+
+  const handleFinalSubmit = useCallback(
+    async (e) => {
+      if (status === INTERVIEW_STATUS.SUBMITTING && !submitError) return;
+      setStatus(INTERVIEW_STATUS.SUBMITTING);
+      setSubmitError(null);
+      try {
+        console.log('[TestPage] Final submission initiated');
+        await submitInterview({ interviewId: sttInterviewId, candidateId, candidateName });
+        setStatus(INTERVIEW_STATUS.COMPLETED);
+      } catch (err) {
+        console.error('[TestPage] handleFinalSubmit error:', err);
+        const backendMsg = err.response?.data?.message || err.message || 'Unknown submission error';
+        setSubmitError(backendMsg);
+      }
+    },
+    [status, submitError, sttInterviewId, candidateId, candidateName, setStatus]
+  );
 
   // ── Timer ──
   useEffect(() => {
-    if (status !== 'ready' || timeLeft === null || !systemCheckPassed) return;
-    if (timeLeft <= 0) { setTimeout(() => handleSubmit(null, true), 0); return; }
-    const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    const ignore = [
+      INTERVIEW_STATUS.WELCOME,
+      INTERVIEW_STATUS.COMPLETED,
+      INTERVIEW_STATUS.SYSTEM_CHECK,
+      INTERVIEW_STATUS.TUTORIAL,
+    ];
+    if (appStatus !== 'ready' || ignore.includes(status)) return;
+
+    if (timeLeft !== null && timeLeft <= 0) {
+      handleFinalSubmit(null);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev !== null && prev <= 1) {
+          clearInterval(timer);
+          handleFinalSubmit(null);
+          return 0;
+        }
+        return prev !== null ? prev - 1 : prev;
+      });
+    }, 1000);
+
     return () => clearInterval(timer);
-  }, [handleSubmit, status, timeLeft, systemCheckPassed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appStatus, status]);
 
-  const formatTime = (seconds) => {
-    if (seconds <= 0) return '00:00';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  // ── Loading ──
-  if (status === 'loading') return (
-    <div className="min-h-screen bg-[#060810] flex flex-col items-center justify-center gap-6">
-      <div className="relative">
-        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-2xl shadow-indigo-900/60">
-          <span className="text-white font-black text-2xl">A</span>
-        </div>
-        <span className="absolute bottom-0 right-0 w-5 h-5 bg-emerald-400 rounded-full border-2 border-[#060810] animate-pulse" />
-      </div>
-      <div className="text-center">
-        <p className="text-white font-semibold text-lg">Preparing your interview</p>
-        <p className="text-slate-500 text-sm mt-1">Please wait a moment...</p>
-      </div>
-      <div className="flex gap-1.5">
-        {[0,1,2].map(i => (
-          <div key={i} className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-        ))}
-      </div>
-    </div>
-  );
-
-  // ── Success ──
-  if (status === 'success') return (
-    <div className="min-h-screen bg-[#060810] flex items-center justify-center p-4">
-      <div className="relative max-w-md w-full text-center">
-        <div className="absolute inset-0 bg-emerald-500/10 rounded-3xl blur-3xl" />
-        <div className="relative bg-[#0d1117] border border-emerald-500/20 p-12 rounded-3xl shadow-2xl">
-          <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-900/40">
-            <CheckCircle className="w-12 h-12 text-white" />
-          </div>
-          <h2 className="text-3xl font-bold text-white mb-3">Interview Complete!</h2>
-          <p className="text-slate-400 leading-relaxed">Your responses have been recorded and submitted. The HR team will review them shortly.</p>
-          <div className="mt-8 bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-slate-500">
-            You may safely close this window
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // ── Already Completed ──
-  if (status === 'already_done') return (
-    <div className="min-h-screen bg-[#060810] flex items-center justify-center p-4">
-      <div className="relative max-w-md w-full text-center">
-        <div className="absolute inset-0 bg-amber-500/8 rounded-3xl blur-3xl" />
-        <div className="relative bg-[#0d1117] border border-amber-500/20 p-12 rounded-3xl shadow-2xl">
-          <div className="w-20 h-20 bg-amber-500/15 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-10 h-10 text-amber-400" />
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-3">Already Submitted</h2>
-          <p className="text-slate-400 text-sm leading-relaxed">This interview has already been completed. Each assessment link can only be used once.</p>
-          <p className="text-slate-600 text-xs mt-4">If you think this is an error, please contact your HR team.</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  // ── Browser Not Supported ──
-  if (!browserSupported) return (
-    <div className="min-h-screen bg-[#060810] flex items-center justify-center p-4">
-      <div className="bg-[#0d1117] border border-orange-500/20 p-10 rounded-3xl max-w-md w-full text-center">
-        <div className="text-5xl mb-4">ðŸŒ</div>
-        <h2 className="text-2xl font-bold text-white mb-3">Unsupported Browser</h2>
-        <p className="text-slate-400 text-sm mb-6">This AI Interview requires voice features not available in your browser.</p>
-        <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 text-left space-y-2">
-          <p className="text-orange-300 text-xs font-bold uppercase tracking-wider mb-3">Please use one of these browsers:</p>
-          {['✅ Google Chrome (recommended)', '✅ Microsoft Edge', '✅ Safari (macOS / iOS)'].map(b => (
-            <p key={b} className="text-slate-300 text-sm">{b}</p>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  // ── Error ──
-  if (status === 'error' && !questions.length) return (
-    <div className="min-h-screen bg-[#060810] flex items-center justify-center p-4">
-      <div className="bg-[#0d1117] border border-red-500/20 p-10 rounded-3xl max-w-md w-full text-center">
-        <div className="w-16 h-16 bg-red-500/15 rounded-full flex items-center justify-center mx-auto mb-4">
-          <AlertTriangle className="w-8 h-8 text-red-400" />
-        </div>
-        <h2 className="text-2xl font-bold text-white mb-3">Something went wrong</h2>
-        <p className="text-slate-400 text-sm">{errorMessage}</p>
-      </div>
-    </div>
-  );
-
-  // ── Grading / Submitting ──
-  if (status === 'grading' || status === 'submitting') return (
-    <div className="min-h-screen bg-[#060810] flex flex-col items-center justify-center gap-8 p-4">
-      <div className="relative">
-        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-2xl shadow-indigo-900/60">
-          <span className="text-white font-black text-2xl">A</span>
-        </div>
-        <div className="absolute inset-0 rounded-full border-4 border-indigo-500/30 animate-ping" />
-      </div>
-      <div className="text-center">
-        <p className="text-white font-bold text-xl">{status === 'grading' ? 'Alisa is reviewing your answers...' : 'Submitting your results...'}</p>
-        <p className="text-slate-500 text-sm mt-2">Please keep this window open</p>
-      </div>
-      <div className="flex gap-1.5">
-        {[0,1,2,3,4].map(i => (
-          <div key={i} className="w-1.5 h-8 bg-indigo-500/60 rounded-full" style={{ animation: `audioBar 0.8s ease-in-out infinite`, animationDelay: `${i * 0.12}s` }} />
-        ))}
-      </div>
-      <style>{`@keyframes audioBar { 0%,100%{transform:scaleY(.3);opacity:.5} 50%{transform:scaleY(1);opacity:1} }`}</style>
-    </div>
-  );
-
-  // ── System Check ──
-  if (status === 'ready' && !systemCheckPassed) {
-    return <SystemCheck onComplete={() => setSystemCheckPassed(true)} />;
+  // ── Reset Countdown State on Status Change ──
+  if (
+    status !== INTERVIEW_STATUS.READY_TO_ANSWER &&
+    (prepTimeLeft !== 20 || countdownTimeLeft !== 3 || isCountingDown)
+  ) {
+    setPrepTimeLeft(20);
+    setCountdownTimeLeft(3);
+    setIsCountingDown(false);
   }
 
-  const introHint = status === 'ready' && systemCheckPassed && !introAccepted ? 'Tap begin to hear the introduction.' : '';
+  // ── Countdown Effect ──
+  useEffect(() => {
+    if (status !== INTERVIEW_STATUS.READY_TO_ANSWER) return;
 
-  // ── Intro Screen ──
-  if (status === 'ready' && systemCheckPassed && !introAccepted) {
+    let timer;
+    if (!isCountingDown && prepTimeLeft > 0) {
+      timer = setInterval(() => setPrepTimeLeft((p) => p - 1), 1000);
+    } else if (!isCountingDown && prepTimeLeft === 0) {
+      setIsCountingDown(true);
+    } else if (isCountingDown && countdownTimeLeft > 0) {
+      timer = setInterval(() => setCountdownTimeLeft((c) => c - 1), 1000);
+    } else if (isCountingDown && countdownTimeLeft === 0) {
+      saveInterviewAuditEvent({
+        interviewId: sttInterviewId,
+        candidateId,
+        eventType: 'ANSWER_RECORDING_STARTED',
+        questionNo: currentQuestionIndex + 1,
+      });
+      startAnswerRecording();
+    }
+
+    return () => clearInterval(timer);
+  }, [
+    status,
+    isCountingDown,
+    prepTimeLeft,
+    countdownTimeLeft,
+    sttInterviewId,
+    candidateId,
+    currentQuestionIndex,
+    startAnswerRecording,
+  ]);
+
+  const handleStartCountdownManual = () => {
+    if (isCountingDown) return;
+    setIsCountingDown(true);
+    setPrepTimeLeft(0);
+  };
+
+  // ── Actions ──
+  const handleStartInterview = async () => {
+    setIsStartingSession(true);
+    try {
+      console.log('[TestPage] handleStartInterview initiated');
+      const res = await startInterviewSession({
+        candidateId,
+        candidateName,
+        candidateEmail,
+        candidatePhone: '',
+        roleApplied: candidatePosition,
+        totalQuestions: questions.length,
+      });
+
+      if (!res.interviewId) {
+        throw new Error('No interviewId received from server.');
+      }
+
+      setSttInterviewId(res.interviewId);
+      setStatus(INTERVIEW_STATUS.SYSTEM_CHECK);
+    } catch (e) {
+      console.error('[TestPage] handleStartInterview error:', e);
+      setAppStatus('error');
+      setErrorMessage(e.message || 'Failed to initialize session. Please check your connection.');
+    } finally {
+      setIsStartingSession(false);
+    }
+  };
+
+  const handleFinishRecording = () => {
+    saveInterviewAuditEvent({
+      interviewId: sttInterviewId,
+      candidateId,
+      eventType: 'ANSWER_RECORDING_FINISHED',
+      questionNo: currentQuestionIndex + 1,
+    });
+    const currentQuestionText =
+      currentQuestionIndex === -1
+        ? 'Practice'
+        : questions[currentQuestionIndex] || 'Question text missing';
+    finishAnswerRecording(currentQuestionText, currentQuestionIndex === -1);
+  };
+
+  const formatTime = (s) => {
+    if (s === null || s === undefined) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  // ── Render Helpers ──
+  const getAlisaStatus = () => {
+    switch (status) {
+      case INTERVIEW_STATUS.SPEAKING:
+        return 'Speaking';
+      case INTERVIEW_STATUS.READY_TO_ANSWER:
+        return 'Listening';
+      case INTERVIEW_STATUS.RECORDING:
+        return 'Listening';
+      case INTERVIEW_STATUS.PROCESSING_AUDIO:
+        return 'Analyzing';
+      case INTERVIEW_STATUS.TRANSCRIPT_REVIEW:
+        return 'Reviewing';
+      case INTERVIEW_STATUS.SAVING_ANSWER:
+        return 'Processing';
+      default:
+        return 'Ready';
+    }
+  };
+
+  const getActiveTab = () => {
+    switch (status) {
+      case INTERVIEW_STATUS.SPEAKING:
+        return 'speaking';
+      case INTERVIEW_STATUS.READY_TO_ANSWER:
+        return 'ready';
+      case INTERVIEW_STATUS.RECORDING:
+        return 'recording';
+      case INTERVIEW_STATUS.PROCESSING_AUDIO:
+        return 'processing';
+      case INTERVIEW_STATUS.TRANSCRIPT_REVIEW:
+        return 'transcript';
+      case INTERVIEW_STATUS.SAVING_ANSWER:
+        return 'transcript';
+      default:
+        return '';
+    }
+  };
+
+  const showTwoColumnLayout = [
+    INTERVIEW_STATUS.SPEAKING,
+    INTERVIEW_STATUS.READY_TO_ANSWER,
+    INTERVIEW_STATUS.RECORDING,
+    INTERVIEW_STATUS.PROCESSING_AUDIO,
+    INTERVIEW_STATUS.TRANSCRIPT_REVIEW,
+    INTERVIEW_STATUS.SAVING_ANSWER,
+    INTERVIEW_STATUS.NEXT_QUESTION,
+  ].includes(status);
+
+  // ── Render Logic ──
+
+  if (appStatus === 'loading')
     return (
-      <div className="min-h-screen bg-[#060810] flex items-center justify-center p-4">
-        <div className="relative max-w-lg w-full">
-          <div className="absolute inset-0 bg-indigo-500/10 rounded-[2.5rem] blur-3xl" />
-          <div className="relative bg-[#0d1117] border border-white/8 rounded-[2rem] p-8 sm:p-10 shadow-2xl">
-            {/* AI Avatar */}
-            <div className="flex items-center gap-4 mb-8">
-              <div className="relative shrink-0">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center shadow-xl shadow-indigo-900/50">
-                  <span className="text-white font-black text-2xl">A</span>
-                </div>
-                <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-[#0d1117]" />
-              </div>
-              <div>
-                <p className="text-xs text-indigo-400 font-semibold uppercase tracking-wider">AI Interviewer</p>
-                <h2 className="text-xl font-bold text-white">Alisa</h2>
-                <p className="text-xs text-emerald-400 font-medium flex items-center gap-1"><span className="w-1.5 h-1.5 bg-emerald-400 rounded-full inline-block animate-pulse" />Online</p>
-              </div>
-            </div>
+      <div className="h-screen bg-[#060810] flex flex-col items-center justify-center space-y-4">
+        <div className="w-16 h-16 border-4 border-indigo-900/20 border-t-indigo-600 rounded-full animate-spin" />
+        <p className="text-slate-500 font-bold tracking-widest uppercase text-[10px]">
+          Initializing Secure Environment
+        </p>
+      </div>
+    );
 
-            {/* Chat Bubble */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl rounded-tl-none p-5 mb-6">
-              <p className="text-slate-200 text-base leading-relaxed">
-                Hello <span className="text-indigo-400 font-semibold">{candidateName || 'there'}</span>. I am Alisa, your interviewer.
-              </p>
-              <p className="text-slate-400 text-sm leading-relaxed mt-3">
-                I will ask a few structured questions about your experience. Please answer clearly and directly.
-              </p>
-            </div>
-
+  if (appStatus === 'error')
+    return (
+      <div className="min-h-screen bg-[#060810] flex items-center justify-center p-6 text-slate-200">
+        <div className="bg-[#0d1117] border border-white/5 rounded-2xl p-10 shadow-2xl relative overflow-hidden max-w-md w-full text-center">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500/0 via-red-500/40 to-red-500/0 opacity-30" />
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Access Restricted</h2>
+          <p className="text-slate-400 text-sm leading-relaxed mb-8">
+            {errorMessage || 'This assessment link is invalid or has expired.'}
+            <br />
+            <span className="text-[10px] text-slate-600 uppercase tracking-widest mt-2 block font-bold">
+              Error: {id ? `ID ${id} not found` : 'Missing ID'}
+            </span>
+          </p>
+          <div className="flex flex-col gap-3">
             <button
-              onClick={playIntro}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-base transition-all shadow-lg shadow-indigo-900/40 hover:shadow-indigo-900/60 hover:scale-[1.02] active:scale-[0.99]"
+              onClick={fetchTestData}
+              className="w-full h-12 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-2"
             >
-              Begin Interview
+              <RefreshCw className="w-4 h-4" /> Retry Connection
             </button>
-            {introHint && (
-              <p className="mt-4 text-center text-xs text-slate-500">{introHint}</p>
-            )}
           </div>
         </div>
       </div>
     );
-  }
 
-  const isLastQuestion = currentQuestionIndex === questions.length - 1;
-  const currentAnswer = answers[currentQuestionIndex] || '';
-  const currentTopic = topics[currentQuestionIndex];
-  const answeredCount = Object.values(answers).filter(a => a?.trim().length > 0).length;
-  const isTimeLow = timeLeft !== null && timeLeft < 60;
+  if (appStatus === 'completed_already' || status === INTERVIEW_STATUS.COMPLETED)
+    return (
+      <div className="h-screen bg-[#060810] flex items-center justify-center">
+        <CompletionScreen candidateName={candidateName} speak={speak} />
+      </div>
+    );
 
   return (
-    <div className="min-h-screen bg-[#060810] flex flex-col" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-
-      {/* ── Top Bar ── */}
-      <header className="border-b border-white/5 bg-[#060810]/90 backdrop-blur-xl sticky top-0 z-20">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-black text-xs">H</span>
-            </div>
-            <div className="h-4 w-px bg-white/10" />
-            <span className="text-slate-400 text-sm">AI Interview</span>
+    <div className="h-[100dvh] bg-[#060810] text-slate-200 font-sans flex flex-col overflow-hidden">
+      {/* 1. SaaS Header */}
+      <header className="shrink-0 z-50 border-b border-white/5 bg-[#0B1020]/80 backdrop-blur-2xl px-6 lg:px-10 py-2 flex items-center justify-between h-[52px]">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 rounded bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-900/20">
+            <span className="text-white font-black text-[10px]">H</span>
           </div>
+          <h1 className="text-[11px] font-bold tracking-widest text-white uppercase leading-none">
+            HireOS
+          </h1>
+        </div>
 
-          {/* Progress Pills */}
-          <div className="flex items-center gap-1.5">
-            {questions.map((_, idx) => (
-              <div
-                key={idx}
-                className={`transition-all duration-300 rounded-full ${
-                  idx === currentQuestionIndex ? 'w-6 h-2 bg-indigo-500' :
-                  answers[idx]?.trim() ? 'w-2 h-2 bg-emerald-500' : 'w-2 h-2 bg-white/15'
-                }`}
-              />
-            ))}
+        {questions.length > 0 && showTwoColumnLayout && (
+          <div className="hidden sm:block">
+            <ProgressBar
+              total={questions.length}
+              current={currentQuestionIndex}
+              answers={answers}
+            />
           </div>
+        )}
 
-          <div className="flex flex-wrap items-center gap-2">
-            {timeLeft !== null && (
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                isTimeLow ? 'bg-red-500/15 text-red-400 border-red-500/30 animate-pulse' : 'bg-white/5 text-slate-400 border-white/10'
-              }`}>
-                <Timer className="w-3 h-3" />
-                {formatTime(timeLeft)}
-              </div>
-            )}
-            <div className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-slate-500 text-xs">
-              <Shield className="w-3 h-3" />
-              <span>Monitored</span>
+        <div className="flex items-center gap-4">
+          {timeLeft !== null && showTwoColumnLayout && (
+            <div
+              className={`px-2.5 py-0.5 rounded text-[10px] font-bold border transition-all ${
+                timeLeft < 60
+                  ? 'bg-red-500/10 text-red-400 border-red-500/30 animate-pulse'
+                  : 'bg-white/5 text-slate-400 border-white/10'
+              }`}
+            >
+              {formatTime(timeLeft)}
             </div>
+          )}
+          <div className="h-4 w-px bg-white/10 hidden sm:block"></div>
+          <div className="flex flex-col items-end hidden sm:flex text-right">
+            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest leading-none mb-1 truncate max-w-[120px]">
+              {candidatePosition || 'Technical Assessment'}
+            </span>
+            <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-tighter leading-none truncate max-w-[120px]">
+              {candidateName || 'Candidate'}
+            </span>
           </div>
         </div>
       </header>
 
-      {/* ── Tab-switch Warning ── */}
-      {tabSwitches > 0 && (
-        <div className="bg-red-600/95 backdrop-blur border-b border-red-500/30">
-          <div className="max-w-3xl mx-auto px-4 py-2.5 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-white" />
-            <p className="text-sm font-semibold text-white">Tab switch detected — {tabSwitches} time{tabSwitches > 1 ? 's' : ''}. This has been recorded for HR.</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Main Content ── */}
-      <main className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 gap-5">
-
-        {/* ── AI Interviewer Card ── */}
-        <div className={`rounded-2xl border p-5 transition-all duration-500 ${
-          isSpeaking ? 'border-indigo-500/40 bg-indigo-500/5 shadow-lg shadow-indigo-900/30' : 'border-white/8 bg-white/3'
-        }`}>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            {/* Avatar */}
-            <div className="relative shrink-0">
-              <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center transition-all ${isSpeaking ? 'shadow-lg shadow-indigo-900/60 scale-105' : ''}`}>
-                <span className="text-white font-black text-lg">A</span>
+      {/* 2. Main Area */}
+      <main className="flex-1 min-h-0 p-4 lg:p-8 overflow-hidden">
+        {showTwoColumnLayout ? (
+          <div className="h-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 min-h-0 items-start">
+            {/* Left Column: Interview Content */}
+            <div className="h-full flex flex-col min-h-0 overflow-hidden">
+              {/* Mobile Alisa Header */}
+              <div className="lg:hidden mb-4 shrink-0 mx-auto w-[160px]">
+                <AlisaFacePanel
+                  isSpeaking={status === INTERVIEW_STATUS.SPEAKING}
+                  status={getAlisaStatus()}
+                  posterSrc="/src/assets/alisa_poster.png"
+                  compact={true}
+                />
               </div>
-              {isSpeaking && <span className="absolute inset-0 rounded-2xl bg-indigo-500/40 animate-ping" />}
-              <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-[#060810]" />
-            </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-xs text-slate-500 font-medium">Alisa · AI Interviewer</p>
-                {isSpeaking && (
-                  <span className="flex items-center gap-1 text-xs text-indigo-400 font-medium">
-                    <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />speaking
-                  </span>
+              <div className="flex-1 flex flex-col min-h-0 justify-start pt-2 lg:pt-4">
+                {status === INTERVIEW_STATUS.SPEAKING && (
+                  <InteractionSpeaking
+                    questions={questions}
+                    currentQuestionIndex={currentQuestionIndex}
+                    onSkip={() => {
+                      stopSpeaking();
+                      setStatus(INTERVIEW_STATUS.READY_TO_ANSWER);
+                    }}
+                  />
                 )}
-              </div>
-
-              {/* Question */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <p className="text-white text-base sm:text-lg font-semibold leading-relaxed flex-1">
-                  {questions[currentQuestionIndex]}
-                </p>
-                <button
-                  onClick={() => speakQuestion(questions[currentQuestionIndex])}
-                  disabled={isSpeaking || isAcknowledging}
-                  title="Replay question"
-                  className={`shrink-0 mt-0.5 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                    isSpeaking ? 'bg-indigo-500 text-white' : 'bg-white/5 text-slate-500 hover:bg-indigo-500/20 hover:text-indigo-400 border border-white/10'
-                  } disabled:opacity-40`}
-                >
-                  <Volume2 className={`w-3.5 h-3.5 ${isSpeaking ? 'animate-pulse' : ''}`} />
-                </button>
-              </div>
-
-              {/* Tags */}
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <span className="text-xs text-slate-500">Q{currentQuestionIndex + 1}/{questions.length}</span>
-                {currentTopic && (
-                  <span className="text-[10px] px-2 py-0.5 bg-indigo-500/10 text-indigo-400 rounded-full border border-indigo-500/20 font-medium uppercase tracking-wider">{currentTopic}</span>
+                {status === INTERVIEW_STATUS.READY_TO_ANSWER &&
+                  (isCountingDown ? (
+                    <RecordingCountdown seconds={countdownTimeLeft} />
+                  ) : (
+                    <InteractionReady
+                      audioError={audioError}
+                      questions={questions}
+                      currentQuestionIndex={currentQuestionIndex}
+                      speakQuestion={speakQuestion}
+                      onStartCountdownManual={handleStartCountdownManual}
+                    />
+                  ))}
+                {status === INTERVIEW_STATUS.RECORDING && (
+                  <InteractionRecording
+                    formatTime={formatTime}
+                    recordingTime={recordingTime}
+                    volumeLevel={volumeLevel}
+                    questions={questions}
+                    currentQuestionIndex={currentQuestionIndex}
+                  />
                 )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Your Answer Area ── */}
-        <div className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
-          isProcessingAudio ? 'border-violet-500/40 bg-violet-500/5' :
-          isRecording ? 'border-red-500/30 bg-red-500/4' :
-          currentAnswer ? 'border-emerald-500/20 bg-emerald-500/4' :
-          'border-white/8 bg-white/3'
-        }`}>
-          {/* Answer header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Your Response</p>
-            {currentAnswer && !isRecording && !isProcessingAudio && (
-              <span className="text-[11px] text-emerald-400 flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 font-semibold">
-                <CheckCircle className="w-3 h-3" /> Recorded
-              </span>
-            )}
-            {isRecording && (
-              <span className="flex items-center gap-1.5 text-[11px] text-red-400 font-semibold">
-                <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />Recording
-              </span>
-            )}
-            {isProcessingAudio && (
-              <span className="flex items-center gap-1.5 text-[11px] text-violet-400 font-semibold">
-                <div className="w-3 h-3 border border-violet-400 border-t-transparent rounded-full animate-spin" />
-                Processing
-              </span>
-            )}
-          </div>
-
-          {/* Answer body */}
-          <div className="min-h-[120px] p-4 flex items-center justify-center">
-            {isSpeaking && (
-              <div className="text-center space-y-3">
-                <div className="flex items-end gap-1 h-8 justify-center">
-                  {[...Array(7)].map((_, i) => (
-                    <div key={i} className="w-1 bg-indigo-400/60 rounded-full" style={{ height: `${25 + Math.sin(i * 0.8) * 50}%`, animation: `audioBar 0.6s ease-in-out infinite`, animationDelay: `${i * 0.09}s` }} />
-                  ))}
-                </div>
-                <p className="text-indigo-400 text-sm font-medium">Alisa is speaking</p>
-                <p className="text-slate-600 text-xs">Your mic will activate automatically</p>
-              </div>
-            )}
-            {!isSpeaking && isRecording && !isProcessingAudio && (
-              <div className="text-center w-full space-y-3">
-                <div className="flex items-end gap-1 h-10 justify-center">
-                  {[...Array(9)].map((_, i) => (
-                    <div key={i} className="w-1.5 bg-red-400 rounded-full" style={{ animation: `audioBar 0.5s ease-in-out infinite`, animationDelay: `${i * 0.07}s`, height: `${20 + Math.abs(Math.sin(i * 0.7)) * 80}%` }} />
-                  ))}
-                </div>
-                <p className="text-red-400 text-sm font-semibold">🎙 Recording — tap to stop when done</p>
-                <p className="text-slate-600 text-xs">You control when to stop</p>
-                {(liveTranscript || interimTranscript) && (
-                  <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-lg text-left">
-                    <p className="text-xs text-slate-500 font-semibold mb-1">Live Transcript:</p>
-                    <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
-                      {liveTranscript}
-                      {interimTranscript && (
-                        <span className="text-slate-400 italic">{interimTranscript}</span>
-                      )}
+                {status === INTERVIEW_STATUS.PROCESSING_AUDIO && (
+                  <InteractionProcessing transcriptError={audioError} onRetry={retryAnswer} />
+                )}
+                {(status === INTERVIEW_STATUS.TRANSCRIPT_REVIEW ||
+                  status === INTERVIEW_STATUS.SAVING_ANSWER) && (
+                  <TranscriptReview
+                    transcript={transcript}
+                    onTranscriptChange={setCurrentTranscript}
+                    isSaving={status === INTERVIEW_STATUS.SAVING_ANSWER}
+                    questions={questions}
+                    currentQuestionIndex={currentQuestionIndex}
+                  />
+                )}
+                {status === INTERVIEW_STATUS.NEXT_QUESTION && (
+                  <div className="flex-1 flex flex-col items-center justify-center animate-pulse">
+                    <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin mb-4" />
+                    <h2 className="text-lg font-bold text-white">Preparing Next Question...</h2>
+                  </div>
+                )}
+                {/* Fallback for unmapped status in two column layout */}
+                {![
+                  INTERVIEW_STATUS.SPEAKING,
+                  INTERVIEW_STATUS.READY_TO_ANSWER,
+                  INTERVIEW_STATUS.RECORDING,
+                  INTERVIEW_STATUS.PROCESSING_AUDIO,
+                  INTERVIEW_STATUS.TRANSCRIPT_REVIEW,
+                  INTERVIEW_STATUS.SAVING_ANSWER,
+                  INTERVIEW_STATUS.NEXT_QUESTION,
+                ].includes(status) && (
+                  <div className="flex-1 flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 border-4 border-indigo-900/20 border-t-indigo-600 rounded-full animate-spin mb-4" />
+                    <p className="text-slate-500 text-xs uppercase tracking-widest font-bold">
+                      Synchronizing Interview Engine...
                     </p>
                   </div>
                 )}
               </div>
-            )}
-            {isProcessingAudio && (
-              <div className="text-center space-y-3">
-                <div className="w-10 h-10 rounded-full border-2 border-violet-500/30 border-t-violet-400 animate-spin mx-auto" />
-                <p className="text-violet-400 text-sm font-semibold">Transcribing your answer...</p>
-              </div>
-            )}
-            {!isSpeaking && !isRecording && !isProcessingAudio && currentAnswer && (
-              <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap w-full">{currentAnswer}</p>
-            )}
-            {!isSpeaking && !isRecording && !isProcessingAudio && !currentAnswer && (
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto">
-                  <Mic className="w-5 h-5 text-slate-600" />
+            </div>
+
+            {/* Right Column: Pinned Alisa */}
+            <div className="hidden lg:flex flex-col h-full min-h-0 overflow-hidden py-1">
+              <div className="flex-1 flex flex-col items-center justify-start min-h-0">
+                <AlisaFacePanel
+                  isSpeaking={status === INTERVIEW_STATUS.SPEAKING}
+                  status={getAlisaStatus()}
+                  posterSrc="/src/assets/alisa_poster.png"
+                />
+
+                <div className="mt-4 w-full p-3 rounded-lg bg-white/[0.01] border border-white/5 opacity-40">
+                  <div className="flex items-center justify-between text-[8px] uppercase tracking-widest">
+                    <span className="text-slate-600">Secure Session</span>
+                    <Shield className="w-3 h-3 text-emerald-500/50" />
+                  </div>
                 </div>
-                <p className="text-slate-500 text-sm">Tap the mic button to start answering</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Full Width Layouts */
+          <div className="h-full flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
+            {status === INTERVIEW_STATUS.IDLE && (
+              <div className="flex-1 flex flex-col items-center justify-center animate-fade-in my-auto">
+                <div className="w-12 h-12 border-4 border-indigo-900/20 border-t-indigo-600 rounded-full animate-spin mb-4" />
+                <p className="text-slate-500 text-xs uppercase tracking-widest font-bold">
+                  Preparing your interview...
+                </p>
               </div>
             )}
-          </div>
-
-          {lastTranscript && (
-            <div className="px-4 pb-4 border-t border-white/5 text-xs text-slate-400">
-              <div className="font-semibold text-slate-500 mb-1">Last heard</div>
-              <p className="whitespace-pre-wrap leading-6">{lastTranscript}</p>
-            </div>
-          )}
-        </div>
-
-        {/* ── Mic Button + Controls ── */}
-        <div className="flex flex-col items-center gap-5">
-          {/* Big mic button */}
-          <div className="relative">
-            {isRecording && (
-              <>
-                <span className="absolute inset-0 rounded-full bg-red-500/20 animate-ping scale-150" />
-                <span className="absolute inset-0 rounded-full bg-red-500/10 animate-ping scale-125" style={{ animationDelay: '0.3s' }} />
-              </>
+            {status === INTERVIEW_STATUS.WELCOME && (
+              <WelcomeScreen
+                candidateName={candidateName}
+                onStart={() => {
+                  unlockAudio();
+                  handleStartInterview();
+                }}
+                isStarting={isStartingSession}
+              />
             )}
-            <button
-              onClick={toggleRecording}
-              disabled={isSpeaking || isAcknowledging || isProcessingAudio}
-              className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-2xl active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed ${
-                isRecording
-                  ? 'bg-red-500 shadow-red-900/60 scale-110'
-                  : 'bg-gradient-to-br from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-indigo-900/60 hover:scale-105'
-              }`}
-            >
-              {isRecording ? (
-                <div className="w-6 h-6 bg-white rounded-sm" />
-              ) : (
-                <Mic className="w-8 h-8 text-white" />
-              )}
-            </button>
-          </div>
-
-          <p className={`text-sm font-semibold transition-colors ${
-            isProcessingAudio ? 'text-violet-400' :
-            isSpeaking ? 'text-indigo-400' :
-            isRecording ? 'text-red-400' : 'text-slate-500'
-          }`}>
-            {statusMessage || (isProcessingAudio ? 'Processing your answer...' :
-             isSpeaking ? 'Alisa is speaking...' :
-             isRecording ? 'Tap to stop · Auto-stops on silence' :
-             'Tap to speak your answer')}
-          </p>
-          {audioError && (
-            <p className="text-xs text-red-300 mt-1 max-w-full text-center">{audioError}</p>
-          )}
-          {needsManualRetry && !isRecording && (
-            <p className="text-xs text-slate-400 mt-1 max-w-full text-center">The interview has paused so you can retry the response manually.</p>
-          )}
-
-          {/* Navigation Actions */}
-          {currentAnswer && !isRecording && !isProcessingAudio && (
-            <div className="flex flex-col sm:flex-row items-stretch gap-3 w-full max-w-sm">
-              <button
-                onClick={handleReRecord}
-                disabled={isAcknowledging}
-                className="flex-1 py-3 rounded-2xl text-sm font-semibold bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-40 transition-all border border-white/10 hover:border-white/20"
-              >
-                ↺ Re-record
-              </button>
-              <button
-                onClick={isLastQuestion ? (e) => handleSubmit(e, false) : handleDoneAndNext}
-                disabled={isAcknowledging}
-                className="flex-1 py-3 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 shadow-lg shadow-indigo-900/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
-              >
-                {isLastQuestion ? 'Submit Interview ✓' : 'Next Question →'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* ── Progress Footer ── */}
-        <div className="border-t border-white/5 pt-4 mt-auto flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-slate-600 gap-2">
-          <span>{answeredCount} of {questions.length} answered</span>
-          <button
-            onClick={() => handleSubmit(null, false)}
-            className="text-slate-600 hover:text-slate-400 transition-colors"
-          >
-            Submit all & finish
-          </button>
-        </div>
-
-        {status === 'error' && (
-          <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 p-4 rounded-2xl">
-            {errorMessage}
+            {status === INTERVIEW_STATUS.SYSTEM_CHECK && (
+              <SystemCheck
+                onStateChange={setIsSystemReady}
+                isSystemReady={isSystemReady}
+                onContinue={() => setStatus(INTERVIEW_STATUS.TUTORIAL)}
+              />
+            )}
+            {status === INTERVIEW_STATUS.TUTORIAL && (
+              <TutorialGuide onContinue={() => setStatus(INTERVIEW_STATUS.PRACTICE_QUESTION)} />
+            )}
+            {status === INTERVIEW_STATUS.PRACTICE_QUESTION && (
+              <PracticeReadyScreen
+                setStatus={setStatus}
+                onStartCountdownManual={handleStartCountdownManual}
+                speakQuestion={speakQuestion}
+              />
+            )}
+            {status === INTERVIEW_STATUS.INSTRUCTIONS && (
+              <InterviewInstructions
+                questionCount={questions.length}
+                onStart={() => {
+                  setCurrentQuestionIndex(0);
+                  speakQuestion(questions?.[0] || 'Hello, are you ready for the first question?');
+                }}
+              />
+            )}
+            {status === INTERVIEW_STATUS.FINAL_REVIEW && (
+              <FinalReview
+                questions={questions}
+                answers={answers}
+                tabSwitches={tabSwitches}
+                onJumpToQuestion={jumpToQuestion}
+                onSubmit={handleFinalSubmit}
+              />
+            )}
+            {status === INTERVIEW_STATUS.SUBMITTING && (
+              <SubmittingScreen
+                submitError={submitError}
+                onRetry={handleFinalSubmit}
+                speak={speak}
+              />
+            )}
+            {/* Fallback for unmapped status in full width layout */}
+            {![
+              INTERVIEW_STATUS.IDLE,
+              INTERVIEW_STATUS.WELCOME,
+              INTERVIEW_STATUS.SYSTEM_CHECK,
+              INTERVIEW_STATUS.TUTORIAL,
+              INTERVIEW_STATUS.PRACTICE_QUESTION,
+              INTERVIEW_STATUS.INSTRUCTIONS,
+              INTERVIEW_STATUS.FINAL_REVIEW,
+              INTERVIEW_STATUS.SUBMITTING,
+            ].includes(status) && (
+              <div className="flex-1 flex flex-col items-center justify-center my-auto">
+                <div className="w-12 h-12 border-4 border-indigo-900/20 border-t-indigo-600 rounded-full animate-spin mb-4" />
+                <p className="text-slate-500 text-xs uppercase tracking-widest font-bold">
+                  Redirecting to next phase...
+                </p>
+              </div>
+            )}
           </div>
         )}
       </main>
 
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        @keyframes audioBar {
-          0%, 100% { transform: scaleY(0.3); opacity: 0.6; }
-          50% { transform: scaleY(1); opacity: 1; }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-in-out;
-        }
-      `}</style>
+      {/* 3. Footer */}
+      {(showTwoColumnLayout || status === INTERVIEW_STATUS.SAVING_ANSWER) && (
+        <InterviewActionBar
+          state={getActiveTab()}
+          onStart={handleStartCountdownManual}
+          onStop={handleFinishRecording}
+          onConfirm={() =>
+            confirmAnswerAction(
+              transcript,
+              currentQuestionIndex === -1,
+              currentQuestionIndex === -1
+                ? 'PRACTICE'
+                : questions?.[currentQuestionIndex] || 'Question text'
+            )
+          }
+          onReplay={() =>
+            speakQuestion(
+              currentQuestionIndex === -1
+                ? 'Please introduce yourself in 20 seconds.'
+                : questions?.[currentQuestionIndex] || 'Question text'
+            )
+          }
+          onRestart={retryAnswer}
+        />
+      )}
+
+      {/* Tab Switch Warning Overlay */}
+      <InterviewWarning tabSwitches={tabSwitches} status={status} />
     </div>
   );
 }
-

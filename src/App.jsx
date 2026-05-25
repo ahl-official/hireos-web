@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import TestPage from './pages/TestPage';
-import Interview from './pages/Interview';
+import AlisaUiLab from './pages/AlisaUiLab';
 
 function App() {
   return (
@@ -9,7 +9,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/test/:id" element={<TestPage />} />
-        <Route path="/interview" element={<Interview />} />
+        <Route path="/alisa-ui-lab" element={<AlisaUiLab />} />
       </Routes>
     </BrowserRouter>
   );
