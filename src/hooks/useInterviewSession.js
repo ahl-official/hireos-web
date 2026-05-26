@@ -229,6 +229,11 @@ export function useInterviewSession(
 
   const confirmAnswerAction = useCallback(
     async (confirmedTranscript, isPractice, questionText) => {
+      if (statusRef.current === INTERVIEW_STATUS.SAVING_ANSWER) {
+        console.warn('[useInterviewSession] Prevented double click on confirmAnswerAction');
+        return;
+      }
+
       console.log('[useInterviewSession] confirmAnswerAction START', {
         transcriptLen: confirmedTranscript?.length,
         currentIdx: currentQuestionIndex,

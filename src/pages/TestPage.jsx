@@ -196,9 +196,12 @@ export default function TestPage() {
     }
   }, [status, voiceDetected, recordingTime, lastVoiceTime]);
 
+  const isSubmittingRef = React.useRef(false);
+
   const handleFinalSubmit = useCallback(
     async (e) => {
-      if (status === INTERVIEW_STATUS.SUBMITTING && !submitError) return;
+      if (isSubmittingRef.current || (status === INTERVIEW_STATUS.SUBMITTING && !submitError)) return;
+      isSubmittingRef.current = true;
       setStatus(INTERVIEW_STATUS.SUBMITTING);
       setSubmitError(null);
       try {
@@ -209,6 +212,7 @@ export default function TestPage() {
         console.error('[TestPage] handleFinalSubmit error:', err);
         const backendMsg = err.response?.data?.message || err.message || 'Unknown submission error';
         setSubmitError(backendMsg);
+        isSubmittingRef.current = false;
       }
     },
     [status, submitError, sttInterviewId, candidateId, candidateName, setStatus]
