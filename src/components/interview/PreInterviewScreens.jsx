@@ -11,7 +11,14 @@ import {
   RotateCcw,
 } from 'lucide-react';
 
-export const WelcomeScreen = ({ candidateName, onStart, isStarting }) => {
+export const WelcomeScreen = ({ candidateName, onStart, isStarting, speak }) => {
+  React.useEffect(() => {
+    if (speak) {
+      speak(`Hello ${candidateName || 'Candidate'}. I'm your AI interviewer. I'll guide you through a short voice interview. Please click on the Begin Interview button to start.`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidateName]);
+
   return (
     <div className="w-full flex flex-col items-center justify-center animate-fade-in-up my-auto">
       <div className="relative z-10 w-full max-w-[500px] px-container-padding">

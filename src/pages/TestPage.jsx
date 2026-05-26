@@ -610,6 +610,7 @@ export default function TestPage() {
                   handleStartInterview();
                 }}
                 isStarting={isStartingSession}
+                speak={speak}
               />
             )}
             {status === INTERVIEW_STATUS.SYSTEM_CHECK && (

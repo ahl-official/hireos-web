@@ -1011,11 +1011,17 @@ function legacyDoPost_(e, action, data) {
       // 5. Update Candidates Sheet
       const now = new Date().toISOString();
 
+      const candidateAnswersList = interviewAnswers.map(
+        (a) => a['Cleaned Transcript'] || a['Final Transcript'] || ''
+      );
+
       const updateData = {
         Status: 'Completed',
         Score: gradeResult.overall_score,
         'Submitted At': now,
         'Interview End Time': now,
+        'Candidate Answers': JSON.stringify(candidateAnswersList),
+        'Per Question Scores': JSON.stringify(gradeResult.per_question_scores || []),
       };
 
       if (folder) updateData['Audio Folder Link'] = folder.getUrl();
@@ -1229,6 +1235,39 @@ function legacyDoPost_(e, action, data) {
 
         let score = Number(r['Score']) || 0;
         let perQuestionScores = parseStored(r['Per Question Scores']);
+
+        // Healing: If candidate answers are empty, try to fetch them from the ANSWERS sheet
+        if (candidateAnswers.length === 0) {
+          try {
+            const answersTabName = HIREOS_SHEET_SCHEMA.ANSWERS.name;
+            const answersSheet = ss.getSheetByName(answersTabName);
+            if (answersSheet) {
+              const rows = answersSheet.getDataRange().getValues();
+              const headers = rows[0];
+              const cIdIdx = headers.indexOf('Candidate ID');
+              const qNoIdx = headers.indexOf('Question No');
+              const transcriptIdx = headers.indexOf('Cleaned Transcript');
+              const finalTranscriptIdx = headers.indexOf('Final Transcript');
+              
+              if (cIdIdx !== -1) {
+                const foundAnswers = rows.slice(1).filter(row => row[cIdIdx] === id);
+                if (foundAnswers.length > 0) {
+                  foundAnswers.sort((a, b) => Number(a[qNoIdx]) - Number(b[qNoIdx]));
+                  foundAnswers.forEach(row => {
+                    const ans = row[transcriptIdx] || row[finalTranscriptIdx] || '';
+                    candidateAnswers.push(ans);
+                  });
+                  
+                  updateRowByHeaders_(sheet, 'ID', id, {
+                    'Candidate Answers': JSON.stringify(candidateAnswers)
+                  });
+                }
+              }
+            }
+          } catch(e) {
+            Logger.log('Healing failed: ' + e.toString());
+          }
+        }
 
         if (questions.length > 0 && candidateAnswers.length > 0) {
           try {
