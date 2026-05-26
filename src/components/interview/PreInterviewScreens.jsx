@@ -276,7 +276,7 @@ export const InterviewInstructions = ({ questionCount, onStart }) => {
 };
 
 export const PracticeReadyScreen = ({ setStatus, onStartCountdownManual, speakQuestion }) => {
-  const practiceQuestion = 'Please introduce yourself in 20 seconds.';
+  const practiceQuestion = "Please say 'My microphone is working properly' to test your audio.";
   return (
     <div className="w-full flex flex-col justify-center items-center relative z-10 animate-fade-in-up my-auto">
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden flex justify-center items-center opacity-20">
