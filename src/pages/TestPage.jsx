@@ -630,7 +630,6 @@ export default function TestPage() {
             {status === INTERVIEW_STATUS.PRACTICE_QUESTION && (
               <PracticeReadyScreen
                 setStatus={setStatus}
-                onStartCountdownManual={handleStartCountdownManual}
                 speakQuestion={speakQuestion}
               />
             )}

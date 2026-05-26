@@ -275,7 +275,7 @@ export const InterviewInstructions = ({ questionCount, onStart }) => {
   );
 };
 
-export const PracticeReadyScreen = ({ setStatus, onStartCountdownManual, speakQuestion }) => {
+export const PracticeReadyScreen = ({ setStatus, speakQuestion }) => {
   const practiceQuestion = "Please say 'My microphone is working properly' to test your audio.";
   return (
     <div className="w-full flex flex-col justify-center items-center relative z-10 animate-fade-in-up my-auto">
@@ -312,7 +312,7 @@ export const PracticeReadyScreen = ({ setStatus, onStartCountdownManual, speakQu
           <div className="flex flex-col items-center gap-3 w-full max-w-sm mx-auto">
             <button
               onClick={() => {
-                speakQuestion(practiceQuestion, onStartCountdownManual);
+                speakQuestion(practiceQuestion);
               }}
               className="w-full h-[52px] rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-3 transition-all active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.4)] border border-indigo-400/50"
             >
