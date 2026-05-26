@@ -185,7 +185,7 @@ export const InterviewFooter = ({
             onClick={() =>
               speakQuestion(
                 currentQuestionIndex === -1
-                  ? 'Please introduce yourself in 20 seconds.'
+                  ? "Please say 'My microphone is working properly' to test your audio."
                   : questions[currentQuestionIndex]
               )
             }
@@ -341,7 +341,7 @@ export const InterviewQuestionCard = ({ status, currentQuestionIndex, questions 
           <div className="max-h-[120px] sm:max-h-[160px] overflow-y-auto custom-scrollbar pr-2">
             <h2 className="text-base sm:text-xl font-bold text-white leading-relaxed tracking-tight">
               {currentQuestionIndex === -1
-                ? 'Please introduce yourself in 20 seconds.'
+                ? "Please say 'My microphone is working properly' to test your audio."
                 : questions[currentQuestionIndex]}
             </h2>
           </div>

@@ -695,7 +695,7 @@ export default function TestPage() {
           onReplay={() =>
             speakQuestion(
               currentQuestionIndex === -1
-                ? 'Please introduce yourself in 20 seconds.'
+                ? "Please say 'My microphone is working properly' to test your audio."
                 : questions?.[currentQuestionIndex] || 'Question text'
             )
           }

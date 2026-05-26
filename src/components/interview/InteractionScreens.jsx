@@ -76,7 +76,7 @@ const StateHeader = ({ activeTab, customTitle, customSubtitle }) => {
 export const InteractionSpeaking = ({ questions, currentQuestionIndex, onSkip }) => {
   const questionText =
     currentQuestionIndex === -1
-      ? 'Please introduce yourself in 20 seconds.'
+      ? "Please say 'My microphone is working properly' to test your audio."
       : questions && questions[currentQuestionIndex]
         ? questions[currentQuestionIndex]
         : 'Loading question...';
@@ -132,7 +132,7 @@ export const InteractionReady = ({
 }) => {
   const questionText =
     currentQuestionIndex === -1
-      ? 'Please introduce yourself in 20 seconds.'
+      ? "Please say 'My microphone is working properly' to test your audio."
       : questions && questions[currentQuestionIndex]
         ? questions[currentQuestionIndex]
         : 'Loading question...';
@@ -187,7 +187,7 @@ export const InteractionRecording = ({
 }) => {
   const questionText =
     currentQuestionIndex === -1
-      ? 'Please introduce yourself in 20 seconds.'
+      ? "Please say 'My microphone is working properly' to test your audio."
       : questions && questions[currentQuestionIndex]
         ? questions[currentQuestionIndex]
         : 'Loading question...';
@@ -344,7 +344,7 @@ export const TranscriptReview = ({
 }) => {
   const questionText =
     currentQuestionIndex === -1
-      ? 'Please introduce yourself in 20 seconds.'
+      ? "Please say 'My microphone is working properly' to test your audio."
       : questions && questions[currentQuestionIndex]
         ? questions[currentQuestionIndex]
         : 'Loading question...';
