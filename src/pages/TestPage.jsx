@@ -621,7 +621,7 @@ export default function TestPage() {
               />
             )}
             {status === INTERVIEW_STATUS.TUTORIAL && (
-              <TutorialGuide onContinue={() => setStatus(INTERVIEW_STATUS.PRACTICE_QUESTION)} />
+              <TutorialGuide onContinue={() => setStatus(INTERVIEW_STATUS.PRACTICE_QUESTION)} speak={speak} />
             )}
             {status === INTERVIEW_STATUS.PRACTICE_QUESTION && (
               <PracticeReadyScreen

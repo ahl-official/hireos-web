@@ -83,7 +83,14 @@ export const WelcomeScreen = ({ candidateName, onStart, isStarting, speak }) => 
   );
 };
 
-export const TutorialGuide = ({ onContinue }) => {
+export const TutorialGuide = ({ onContinue, speak }) => {
+  React.useEffect(() => {
+    if (speak) {
+      speak("Here's a quick guide to how this works. First, I will ask you a question. Second, you answer naturally. Third, you review the transcript of your answer. And fourth, you confirm the accuracy before continuing. Click Start Practice Round when you are ready.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="w-full flex flex-col items-center justify-center animate-fade-in-up my-auto">
       <div className="w-full max-w-[800px] flex flex-col h-full overflow-hidden relative">
