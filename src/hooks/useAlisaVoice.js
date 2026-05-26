@@ -59,20 +59,24 @@ export function useAlisaVoice() {
     const utterance = new SpeechSynthesisUtterance(text);
     const voices = window.speechSynthesis.getVoices();
 
-    // Improved voice selection strategy:
-    // 1. Natural sounding "Enhanced" voices (common on macOS/iOS)
-    // 2. Google US English (common on Chrome/Android)
-    // 3. Any English voice
-    // 4. Fallback to default
-    const preferred =
-      voices.find((v) => v.lang.startsWith('en') && v.name.toLowerCase().includes('enhanced')) ||
-      voices.find(
-        (v) => v.lang.startsWith('en') && v.name.toLowerCase().includes('google us english')
-      ) ||
-      voices.find((v) => v.lang.startsWith('en') && v.name.toLowerCase().includes('google')) ||
-      voices.find((v) => v.lang.startsWith('en') && v.name.toLowerCase().includes('female')) ||
-      voices.find((v) => v.lang.startsWith('en')) ||
-      voices.find((v) => v.lang.includes('en'));
+    const femaleNames = [
+      'samantha', 'victoria', 'karen', 'tessa', // macOS
+      'zira', 'hazel', 'catherine', 'susan', 'aria', 'jenny', // Windows/Edge
+      'google us english', 'google uk english female', // Chrome
+      'female' // Generic fallback
+    ];
+
+    let preferred = voices.find(
+      (v) => v.lang.startsWith('en') && femaleNames.some((name) => v.name.toLowerCase().includes(name))
+    );
+
+    if (!preferred) {
+      preferred = voices.find((v) => v.lang.startsWith('en') && v.name.toLowerCase().includes('google'));
+    }
+    
+    if (!preferred) {
+      preferred = voices.find((v) => v.lang.startsWith('en'));
+    }
 
     if (preferred) {
       utterance.voice = preferred;
