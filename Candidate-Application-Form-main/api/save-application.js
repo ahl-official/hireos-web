@@ -268,10 +268,10 @@ module.exports = async function handler(req, res) {
       data.whyJoin || '', data.achievements || '', data.certifications || '', data.notes || '',
       resumeFileName, resumeLink, 'New Lead', '', '',
       interviewId || '', // Interview ID
-      `=IFERROR(VLOOKUP(INDIRECT("AZ"&ROW()), 'Candidates_Interview'!A:Z, 11, FALSE), "Pending")`, // Interview Score Formula
-      `=IFERROR(VLOOKUP(INDIRECT("AZ"&ROW()), 'Candidates_Interview'!A:Z, 19, FALSE), "Pending")`, // Detailed Summary Formula
-      `=IFERROR(REGEXREPLACE(REGEXEXTRACT(VLOOKUP(INDIRECT("AZ"&ROW()), 'Candidates_Interview'!A:Z, 19, FALSE), """greenFlags""\\s*:\\s*\\[(.*?)\\]"), "[\\""{}]", ""), "Pending")`, // Green Flags
-      `=IFERROR(REGEXREPLACE(REGEXEXTRACT(VLOOKUP(INDIRECT("AZ"&ROW()), 'Candidates_Interview'!A:Z, 19, FALSE), """redFlags""\\s*:\\s*\\[(.*?)\\]"), "[\\""{}]", ""), "Pending")`, // Red Flags
+      `=IFERROR(VLOOKUP(INDIRECT("AZ"&ROW()), 'Interview'!A:Z, 11, FALSE), "Pending")`, // Interview Score Formula
+      `=IFERROR(VLOOKUP(INDIRECT("AZ"&ROW()), 'Interview'!A:Z, 19, FALSE), "Pending")`, // Detailed Summary Formula
+      `=IFERROR(REGEXREPLACE(REGEXEXTRACT(VLOOKUP(INDIRECT("AZ"&ROW()), 'Interview'!A:Z, 19, FALSE), """greenFlags""\\s*:\\s*\\[(.*?)\\]"), "[\\""{}]", ""), "Pending")`, // Green Flags
+      `=IFERROR(REGEXREPLACE(REGEXEXTRACT(VLOOKUP(INDIRECT("AZ"&ROW()), 'Interview'!A:Z, 19, FALSE), """redFlags""\\s*:\\s*\\[(.*?)\\]"), "[\\""{}]", ""), "Pending")`, // Red Flags
       interviewId ? `https://hireos-web.vercel.app/report/${interviewId}` : '' // Report Link (Standalone Page)
     ];
 

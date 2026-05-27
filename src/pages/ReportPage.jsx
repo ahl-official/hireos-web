@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getCandidateDetails } from '../utils/googleSheets';
+import { getCandidateDetails, generateDetailedSummary, saveCandidateSummary } from '../utils/googleSheets';
 import { Download, ChevronLeft, AlertTriangle, CheckCircle, Award, Clock } from 'lucide-react';
 
 export default function ReportPage() {
   const { id } = useParams();
   const [candidate, setCandidate] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMsg, setLoadingMsg] = useState('Loading candidate data...');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -14,6 +15,25 @@ export default function ReportPage() {
       try {
         const data = await getCandidateDetails(id);
         if (data) {
+          // If the AI hasn't generated the detailed summary yet, generate it now!
+          if (!data.detailedSummary && data.candidateAnswers && data.candidateAnswers.length > 0) {
+            setLoadingMsg('Analyzing AI results and generating detailed report (this takes about 15 seconds)...');
+            try {
+              const result = await generateDetailedSummary(
+                data.questions,
+                data.candidateAnswers,
+                data.perQuestionScores,
+                data.questionTypes,
+                data.topics
+              );
+              
+              const summaryStr = typeof result === 'string' ? result : JSON.stringify(result);
+              data.detailedSummary = summaryStr;
+              await saveCandidateSummary(data.id, summaryStr);
+            } catch (err) {
+              console.error("Failed to generate AI summary on the fly:", err);
+            }
+          }
           setCandidate(data);
         } else {
           setError('Candidate not found');
@@ -33,8 +53,9 @@ export default function ReportPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full"></div>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"></div>
+        <p className="text-slate-600 font-medium animate-pulse">{loadingMsg}</p>
       </div>
     );
   }
@@ -59,10 +80,21 @@ export default function ReportPage() {
     try {
       summaryObj = JSON.parse(candidate.detailedSummary);
     } catch (e) {
-      // If it's a raw string rather than JSON
       summaryObj.summary = candidate.detailedSummary;
     }
   }
+
+  const parseJSON = (str, fallback = []) => {
+    if (!str) return fallback;
+    try { return JSON.parse(str); } catch { return fallback; }
+  };
+
+  const questions = parseJSON(candidate.questions);
+  const correctAnswers = parseJSON(candidate.correctAnswers);
+  const candidateAnswers = parseJSON(candidate.candidateAnswers);
+  const scores = parseJSON(candidate.perQuestionScores);
+  const difficulty = parseJSON(candidate.difficulty);
+  const questionTypes = parseJSON(candidate.questionTypes);
 
   return (
     <div className="min-h-screen bg-slate-50 print:bg-white pb-20">
@@ -146,6 +178,55 @@ export default function ReportPage() {
             </div>
           </div>
         </div>
+
+        {/* Assessment Questions */}
+        {questions.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6">Assessment Questions</h2>
+            <div className="space-y-6">
+              {questions.map((q, i) => {
+                const scoreObj = scores[i] || { score: 0, feedback: 'No feedback provided.' };
+                const qType = questionTypes[i] || 'technical';
+                const diff = difficulty[i] || 'medium';
+                
+                return (
+                  <div key={i} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden print:border-b print:rounded-none print:shadow-none print:break-inside-avoid">
+                    <div className="bg-indigo-50/50 px-6 py-4 flex items-center gap-3 border-b border-slate-100">
+                      <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                        {i + 1}
+                      </div>
+                      <div className="flex gap-2 text-xs font-semibold">
+                        <span className="bg-white px-2 py-1 rounded-full text-slate-600 border border-slate-200 uppercase tracking-wider">{qType}</span>
+                        <span className="bg-white px-2 py-1 rounded-full text-slate-600 border border-slate-200 uppercase tracking-wider">{diff}</span>
+                        <span className="bg-indigo-100 px-2 py-1 rounded-full text-indigo-700 font-bold border border-indigo-200">{scoreObj.score}/10</span>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-lg font-bold text-slate-900 mb-6">{q}</h3>
+                      
+                      <div className="space-y-6">
+                        <div>
+                          <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Expected Answer</h4>
+                          <p className="text-sm text-slate-700">{correctAnswers[i] || 'N/A'}</p>
+                        </div>
+                        
+                        <div className="pt-4 border-t border-slate-100">
+                          <h4 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Candidate's Answer</h4>
+                          <p className="text-sm text-slate-700">{candidateAnswers[i] || '(No answer provided)'}</p>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-100">
+                          <h4 className="text-xs font-bold text-orange-600 uppercase tracking-wider mb-2">AI Feedback</h4>
+                          <p className="text-sm text-slate-700">{scoreObj.feedback}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Print Only Footer */}
         <div className="hidden print:block text-center text-sm text-slate-400 mt-12 pt-8 border-t border-slate-100">

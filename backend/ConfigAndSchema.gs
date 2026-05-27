@@ -3,7 +3,7 @@ const HIREOS_LOCAL_SS_PROP = 'HIREOS_LOCAL_SPREADSHEET_ID';
 
 const HIREOS_SHEET_SCHEMA = {
   CANDIDATES: {
-    name: 'Candidates_Interview',
+    name: 'Interview',
     headers: [
       'ID',
       'Name',
