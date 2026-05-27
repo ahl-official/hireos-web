@@ -3,6 +3,11 @@ import { useParams, Link } from 'react-router-dom';
 import { getCandidateDetails, generateDetailedSummary, saveCandidateSummary } from '../utils/googleSheets';
 import { Download, ChevronLeft, AlertTriangle, CheckCircle, Award, Clock } from 'lucide-react';
 
+const parseJSON = (str, fallback = []) => {
+  if (!str) return fallback;
+  try { return JSON.parse(str); } catch { return fallback; }
+};
+
 export default function ReportPage() {
   const { id } = useParams();
   const [candidate, setCandidate] = useState(null);
@@ -20,11 +25,12 @@ export default function ReportPage() {
             setLoadingMsg('Analyzing AI results and generating detailed report (this takes about 15 seconds)...');
             try {
               const result = await generateDetailedSummary(
-                data.questions,
-                data.candidateAnswers,
-                data.perQuestionScores,
-                data.questionTypes,
-                data.topics
+                data.id,
+                parseJSON(data.questions),
+                parseJSON(data.candidateAnswers),
+                parseJSON(data.perQuestionScores),
+                parseJSON(data.questionTypes),
+                parseJSON(data.topics)
               );
               
               const summaryStr = typeof result === 'string' ? result : JSON.stringify(result);
@@ -83,11 +89,6 @@ export default function ReportPage() {
       summaryObj.summary = candidate.detailedSummary;
     }
   }
-
-  const parseJSON = (str, fallback = []) => {
-    if (!str) return fallback;
-    try { return JSON.parse(str); } catch { return fallback; }
-  };
 
   const questions = parseJSON(candidate.questions);
   const correctAnswers = parseJSON(candidate.correctAnswers);
