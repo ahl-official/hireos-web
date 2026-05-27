@@ -203,7 +203,7 @@ module.exports = async function handler(req, res) {
     // The row will be appended after the interview generation is complete
 
     // 3. Trigger HireOS Backend for AI Test Generation (ONLY if 100% complete)
-    const requiredFields = ['fullName','city','positionApplied','experience','expectedSalary','topStrengths','strengthProof','pressureHandling','tenureExpectation','whyJoin','skills'];
+    const requiredFields = ['fullName', 'city', 'positionApplied', 'experience', 'expectedSalary', 'topStrengths', 'strengthProof', 'pressureHandling', 'tenureExpectation', 'whyJoin', 'skills'];
     const filledCount = requiredFields.filter(f => data[f] && data[f].toString().trim()).length;
     const hasResume = (data.resume && data.resume.data && data.resume.type === 'application/pdf') ? 1 : 0;
     const isComplete = (filledCount === requiredFields.length) && (hasResume === 1);
@@ -224,7 +224,7 @@ module.exports = async function handler(req, res) {
         // Make POST request to HireOS Web App
         // using the URL defined in .env (VITE_GOOGLE_APP_SCRIPT_URL)
         const appsScriptUrl = process.env.VITE_GOOGLE_APP_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxHKQek4oF4YXgeuppoC_it59AeaemYJ-YYJ5iVX03tI5QruMhuWKjZBwJ8r2YjBXI/exec';
-        
+
         const cleanHrData = { ...data };
         delete cleanHrData.resume;
 
@@ -239,7 +239,7 @@ module.exports = async function handler(req, res) {
             hrData: cleanHrData
           })
         });
-        
+
         const hireosJson = await hireosRes.json();
         if (hireosJson.status === 'success') {
           interviewId = hireosJson.id;
