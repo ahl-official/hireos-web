@@ -219,6 +219,7 @@ export const regenerateReport = async (id) => {
 };
 
 export const generateDetailedSummary = async (
+  candidateId,
   questions,
   candidateAnswers,
   perQuestionScores,
@@ -228,6 +229,7 @@ export const generateDetailedSummary = async (
   try {
     const res = await post({
       action: 'generateDetailedSummary',
+      candidateId,
       questions,
       candidateAnswers,
       perQuestionScores,

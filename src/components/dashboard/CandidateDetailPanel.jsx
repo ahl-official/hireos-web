@@ -261,6 +261,7 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
       try {
         setLoadingSummary(true);
         const result = await generateDetailedSummary(
+          detail.id,
           detail.questions,
           detail.candidateAnswers,
           detail.perQuestionScores || [],
@@ -338,6 +339,7 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
 
       // Step 2: Regenerate AI summary
       const result = await generateDetailedSummary(
+        parsedDetail.id,
         parsedDetail.questions,
         parsedDetail.candidateAnswers,
         parsedDetail.perQuestionScores || [],
