@@ -46,6 +46,7 @@ const ACTION_HANDLERS = {
   getAllICPs: (data) => legacyDoPost_(null, 'getAllICPs', data),
   getICPById: (data) => legacyDoPost_(null, 'getICPById', data),
   saveICP: (data) => legacyDoPost_(null, 'saveICP', data),
+  generateCandidateTest: (data) => legacyDoPost_(null, 'generateCandidateTest', data),
 };
 
 function doPost(e) {

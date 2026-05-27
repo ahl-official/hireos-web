@@ -3,7 +3,7 @@ const HIREOS_LOCAL_SS_PROP = 'HIREOS_LOCAL_SPREADSHEET_ID';
 
 const HIREOS_SHEET_SCHEMA = {
   CANDIDATES: {
-    name: 'Candidates',
+    name: 'Candidates_Interview',
     headers: [
       'ID',
       'Name',
@@ -35,6 +35,7 @@ const HIREOS_SHEET_SCHEMA = {
       'Interview End Time',
       'Audio Folder Link',
       'Final Transcript Link',
+      'HR Form Data',
     ],
   },
   ICP_MASTER: {
@@ -42,18 +43,9 @@ const HIREOS_SHEET_SCHEMA = {
     headers: [
       'icpId',
       'roleName',
-      'level',
-      'department',
       'status',
       'version',
       'icpContent',
-      'mandatorySkills',
-      'goodToHaveSkills',
-      'topTraits',
-      'redFlags',
-      'stabilityChecks',
-      'scenarioBank',
-      'scoringRubric',
       'createdAt',
       'updatedAt',
     ],
@@ -266,66 +258,7 @@ function setupNewSTTProofSystem_LEGACY() {
   };
 }
 
-const HR_QUESTIONS = [
-  {
-    question: 'Where are you from?',
-    correctAnswer: 'Expect a clear and direct location answer.',
-    topic: 'HR Screening',
-    difficulty: 'medium',
-    questionType: 'hr',
-  },
-  {
-    question: 'Are you currently working somewhere, or have you already left your last job?',
-    correctAnswer: 'Expect a clear current status with timing.',
-    topic: 'HR Screening',
-    difficulty: 'medium',
-    questionType: 'hr',
-  },
-  {
-    question: 'What is your role there, or when did you leave your last job?',
-    correctAnswer: 'Expect a role summary or a clear leaving timeline.',
-    topic: 'HR Screening',
-    difficulty: 'medium',
-    questionType: 'hr',
-  },
-  {
-    question: 'Why are you looking to change your job?',
-    correctAnswer:
-      'Look for a specific reason such as growth, role fit, salary, or learning, not only blaming the previous company.',
-    topic: 'HR Screening',
-    difficulty: 'hard',
-    questionType: 'hr',
-  },
-  {
-    question: 'What are the top 3 things you are really good at? Give one real example.',
-    correctAnswer: 'Look for 2 to 3 specific strengths with at least one concrete example.',
-    topic: 'HR Screening',
-    difficulty: 'hard',
-    questionType: 'hr',
-  },
-  {
-    question:
-      'When work becomes difficult or there is pressure, what do you usually do? Give one real example.',
-    correctAnswer: 'Look for a real situation, the action they took, and the outcome.',
-    topic: 'HR Screening',
-    difficulty: 'hard',
-    questionType: 'hr',
-  },
-  {
-    question: 'What salary are you expecting next?',
-    correctAnswer: 'Expect a realistic salary number or range with some justification.',
-    topic: 'HR Screening',
-    difficulty: 'medium',
-    questionType: 'hr',
-  },
-  {
-    question: 'If things go well, how long do you see yourself working with us?',
-    correctAnswer: 'Expect a clear long-term commitment answer and what makes them stay.',
-    topic: 'HR Screening',
-    difficulty: 'medium',
-    questionType: 'hr',
-  },
-];
+const HR_QUESTIONS = [];
 
 const ASSEMBLYAI_API_KEY =
   PropertiesService.getScriptProperties().getProperty('ASSEMBLYAI_API_KEY') ||

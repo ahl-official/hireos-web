@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Careers | American Hairline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --primary: #0ea5e9; --primary-hover: #0284c7;
+      --text-primary: #0f172a; --text-secondary: #64748b;
+      --border: #e2e8f0; --bg: #f8fafc; --white: #ffffff;
+      --success: #10b981; --error: #ef4444; --warning: #f59e0b;
+    }
+    body { font-family: 'DM Sans', -apple-system, sans-serif; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 25%, #ffffff 50%, #f0f9ff 75%, #dbeafe 100%); color: var(--text-primary); -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden; }
+    .background-decoration { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
+    .floating-circle { position: absolute; border-radius: 50%; opacity: 0.4; filter: blur(80px); animation: float 20s infinite ease-in-out; }
+    .circle-1 { width: 500px; height: 500px; background: linear-gradient(135deg, #7dd3fc, #38bdf8); top: -250px; right: -150px; animation-duration: 25s; }
+    .circle-2 { width: 400px; height: 400px; background: linear-gradient(135deg, #60a5fa, #3b82f6); bottom: -200px; left: -150px; animation-duration: 20s; animation-delay: 2s; }
+    .circle-3 { width: 350px; height: 350px; background: linear-gradient(135deg, #93c5fd, #60a5fa); top: 50%; right: -100px; animation-duration: 22s; animation-delay: 4s; }
+    @keyframes float { 0%,100% { transform: translateY(0) translateX(0) rotate(0deg); } 33% { transform: translateY(-40px) translateX(30px) rotate(120deg); } 66% { transform: translateY(30px) translateX(-30px) rotate(240deg); } }
+
+    .mobile-header { width: 100%; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .mobile-logo-box { background: var(--primary); width: 38px; height: 38px; border-radius: 10px; display: flex; justify-content: center; align-items: center; color: white; font-weight: 800; font-size: 15px; }
+    .mobile-header-left { display: flex; align-items: center; gap: 10px; }
+    .mobile-header-title { font-size: 15px; font-weight: 700; }
+    .mobile-header-right { display: flex; gap: 8px; }
+    .mobile-header-btn { padding: 6px 14px; background: var(--bg); border: none; border-radius: 8px; font-size: 12px; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: 0.2s; }
+    .mobile-header-btn.primary { background: var(--primary); color: white; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* LANDING */
+    .landing-container { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px 20px; position: relative; z-index: 1; }
+    .landing-box { background: rgba(255,255,255,0.88); backdrop-filter: blur(24px) saturate(180%); border-radius: 32px; box-shadow: 0 20px 60px -10px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.6) inset; width: 100%; max-width: 520px; padding: 56px 48px; animation: slideIn 0.8s cubic-bezier(0.2,0.8,0.2,1); border: 1px solid rgba(255,255,255,0.4); text-align: center; }
+    @keyframes slideIn { from { opacity:0; transform: translateY(30px) scale(0.95); } to { opacity:1; transform: translateY(0) scale(1); } }
+    .landing-logo { width: auto; max-width: 260px; height: auto; margin: 0 auto 28px; display: flex; justify-content: center; }
+    .landing-logo img { width: auto; height: auto; max-width: 100%; max-height: 120px; object-fit: contain; }
+    .landing-headline { font-family: 'Playfair Display', Georgia, serif; font-size: 30px; font-weight: 800; line-height: 1.25; color: var(--text-primary); margin-bottom: 14px; letter-spacing: -0.5px; }
+    .landing-headline span { background: linear-gradient(135deg, #0ea5e9, #2563eb); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .landing-subtitle { font-size: 15px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 28px; }
+    .landing-badges { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 28px; }
+    .trust-badge { display: flex; align-items: center; gap: 6px; padding: 7px 14px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 50px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+    .trust-badge i { color: var(--primary); font-size: 12px; }
+    .btn-start { width: 100%; padding: 20px; border-radius: 18px; border: none; font-size: 17px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #0ea5e9, #2563eb); color: white; box-shadow: 0 12px 28px -5px rgba(37,99,235,0.45); transition: all 0.4s cubic-bezier(0.4,0,0.2,1); display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'DM Sans', sans-serif; }
+    .btn-start:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 18px 40px -5px rgba(37,99,235,0.55); }
+    .btn-start:active { transform: scale(0.98); }
+    .privacy-note { margin-top: 20px; font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .privacy-note i { color: var(--success); }
+    .support-dock { display: flex; justify-content: center; gap: 16px; margin-top: 32px; padding: 16px; background: rgba(241,245,249,0.6); border-radius: 24px; }
+    .dock-item { display: flex; flex-direction: column; align-items: center; gap: 6px; text-decoration: none; color: var(--text-secondary); transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); padding: 8px; border-radius: 16px; }
+    .dock-item:hover { transform: translateY(-8px); background: white; box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1); }
+    .dock-icon { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; }
+    .dock-icon.phone { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .dock-icon.whatsapp { background: linear-gradient(135deg, #22c55e, #16a34a); }
+    .dock-icon.support { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    .dock-label { font-size: 11px; font-weight: 600; opacity: 0.8; }
+
+    /* FORM */
+    .container { padding: 20px; max-width: 800px; margin: 0 auto; }
+    .form-group { margin-bottom: 22px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; letter-spacing: -0.2px; }
+    .field-help { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-top: -4px; margin-bottom: 8px; line-height: 1.5; }
+    .required-star { color: var(--error); margin-left: 2px; }
+
+    /* Voice input */
+    .voice-wrap { position: relative; }
+    .voice-wrap .form-control { padding-right: 50px; }
+    .voice-wrap textarea.form-control { padding-right: 50px; }
+    .voice-btn { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 10px; border: none; background: var(--bg); color: var(--primary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 14px; padding: 0; z-index: 2; }
+    .voice-wrap textarea.form-control + .voice-btn { top: 12px; }
+    .voice-btn:hover { background: rgba(14,165,233,0.12); transform: scale(1.08); }
+    .voice-btn:active { transform: scale(0.94); }
+    .voice-btn.listening { background: var(--error); color: white; animation: voicePulse 1.2s infinite; }
+    @keyframes voicePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); } 50% { box-shadow: 0 0 0 7px rgba(239,68,68,0); } }
+    .voice-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text-primary); color: white; padding: 12px 20px; border-radius: 50px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.25); opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 10003; display: flex; align-items: center; gap: 9px; }
+    .voice-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .voice-toast .rec-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--error); animation: voicePulse 1.2s infinite; }
+    .form-control { width: 100%; padding: 15px 18px; border: 2px solid var(--border); border-radius: 14px; font-size: 15px; transition: all 0.2s; background: rgba(255,255,255,0.9); color: var(--text-primary); font-family: 'DM Sans', inherit; font-weight: 500; }
+    .form-control:focus { border-color: var(--primary); outline: none; background: white; box-shadow: 0 0 0 4px rgba(14,165,233,0.1); }
+    .form-control::placeholder { color: #94a3b8; }
+    select.form-control { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 9L1 4h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; background-color: rgba(255,255,255,0.9); padding-right: 40px; }
+    textarea.form-control { resize: vertical; min-height: 100px; }
+    .form-control.field-error { border-color: var(--error) !important; background-color: #fff5f5; box-shadow: 0 0 0 4px rgba(239,68,68,0.1); }
+    .field-error-label { color: var(--error) !important; }
+    .btn { width: 100%; padding: 16px; border: none; border-radius: 14px; font-size: 17px; font-weight: 700; color: white; background: var(--primary); cursor: pointer; transition: all 0.3s; font-family: 'DM Sans', inherit; }
+    .btn:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(14,165,233,0.4); }
+    .btn:active:not(:disabled) { transform: translateY(0); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn.secondary { background: #f1f5f9; color: var(--text-secondary); }
+    .btn.secondary:hover { background: #e2e8f0; box-shadow: none; transform: none; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .form-section-title { display: flex; align-items: center; gap: 10px; margin: 24px 0 16px; padding-bottom: 10px; border-bottom: 2px solid var(--border); font-size: 15px; font-weight: 800; color: var(--primary); }
+    .form-section-title i { font-size: 16px; }
+    .checkbox-group { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+    .checkbox-item { display: flex; align-items: center; padding: 11px 16px; background: var(--bg); border: 2px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+    .checkbox-item:hover { border-color: var(--primary); background: white; }
+    .checkbox-item input { margin-right: 10px; cursor: pointer; width: 17px; height: 17px; accent-color: var(--primary); }
+    .checkbox-item label { cursor: pointer; font-weight: 500; font-size: 14px; margin: 0; }
+
+    /* conditional blocks */
+    .conditional-block { display: none; }
+    .conditional-block.show { display: block; animation: fadeInStep 0.35s ease; }
+
+    /* other-input field */
+    .other-input-wrap { display: none; margin-top: 10px; }
+    .other-input-wrap.show { display: block; }
+
+    /* Step Nav */
+    .step-navigation-header { margin-bottom: 36px; }
+    .step-circles-container { display: flex; justify-content: space-between; margin-bottom: 14px; max-width: 540px; margin-left: auto; margin-right: auto; }
+    .step-circle { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; transition: all 0.5s; background: #f1f5f9; color: #94a3b8; }
+    .step-circle.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(14,165,233,0.3); transform: scale(1.05); }
+    .step-circle.completed { background: var(--success); color: white; position: relative; }
+    .step-circle.completed::after { content: '✓'; position: absolute; font-size: 18px; }
+    .progress-bar-container { width: 100%; height: 6px; background: #f1f5f9; border-radius: 10px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: var(--primary); transition: width 0.7s ease; }
+    #stepTitle { text-align: center; margin-top: 12px; font-size: 17px; font-weight: 700; color: var(--text-primary); }
+    .form-step { display: none; animation: fadeInStep 0.4s ease-in-out; }
+    .form-step.active { display: block; }
+    @keyframes fadeInStep { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+    .form-step h3 { font-size: 22px; font-weight: 800; margin-bottom: 20px; color: var(--text-primary); }
+    .form-navigation { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+
+    /* Document Upload */
+    .doc-upload-area { border: 2px dashed var(--border); border-radius: 14px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s; background: rgba(240,249,255,0.4); }
+    .doc-upload-area:hover { border-color: var(--primary); background: white; }
+    .doc-upload-area.has-file { border-color: var(--success); background: rgba(16,185,129,0.05); }
+    .doc-upload-icon { font-size: 32px; margin-bottom: 8px; color: var(--primary); }
+    .doc-upload-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+    .doc-upload-file-name { font-size: 12px; font-weight: 700; color: var(--success); margin-top: 6px; }
+    .info-hint { padding: 12px 16px; background: rgba(14,165,233,0.07); border: 1.5px solid rgba(14,165,233,0.2); border-radius: 10px; font-size: 13px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+    .info-hint i { color: var(--primary); margin-top: 2px; flex-shrink: 0; }
+
+    /* Portal */
+    .portal-wrapper { width: 100%; min-height: 100vh; position: relative; z-index: 1; }
+    .profile-card { width: 100%; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-radius: 20px; padding: 24px 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.8); margin-bottom: 18px; }
+    .profile-header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+    .profile-avatar { width: 56px; height: 56px; background: linear-gradient(135deg, var(--primary), var(--primary-hover)); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; flex-shrink: 0; }
+    .profile-info h2 { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+    .profile-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+    .badge { padding: 4px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+    .badge.success { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: var(--success); }
+    .completeness-card { width: 100%; background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: white; border-radius: 20px; padding: 24px 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); margin-bottom: 18px; }
+    .completeness-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .completeness-header h3 { font-size: 15px; font-weight: 700; }
+    .completeness-percentage { font-size: 32px; font-weight: 800; line-height: 1; }
+    .completeness-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+    .completeness-bar-fill { height: 100%; background: white; border-radius: 10px; transition: width 1s ease; }
+    .info-card { width: 100%; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border-radius: 20px; padding: 20px 18px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.8); margin-bottom: 18px; }
+    .info-card h4 { font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+    .info-item { display: flex; justify-content: space-between; padding: 11px 12px; background: var(--bg); border-radius: 10px; margin-bottom: 8px; gap: 12px; }
+    .info-item:last-child { margin-bottom: 0; }
+    .info-item.stacked { flex-direction: column; align-items: flex-start; gap: 5px; }
+    .info-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+    .info-value { font-size: 13px; font-weight: 700; color: var(--text-primary); text-align: right; word-break: break-word; }
+    .info-item.stacked .info-value { text-align: left; font-weight: 600; line-height: 1.5; }
+    .photos-card { width: 100%; background: rgba(255,255,255,0.95); border-radius: 20px; padding: 20px 18px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.8); margin-bottom: 18px; }
+    .photos-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+    .action-btn { flex: 1; padding: 11px 14px; background: white; color: var(--primary); border: 1px solid var(--border); border-radius: 12px; font-weight: 700; cursor: pointer; transition: all 0.3s; font-size: 13px; white-space: nowrap; font-family: 'DM Sans', inherit; }
+    .action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+    /* Loading */
+    .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 9999; }
+    .loading-overlay.show { display: flex; }
+    .spinner { width: 46px; height: 46px; border: 4px solid rgba(14,165,233,0.2); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Alert Modal */
+    .alert-modal { display: none; position: fixed; z-index: 10001; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); justify-content: center; align-items: center; padding: 20px; }
+    .alert-modal.show { display: flex; }
+    .alert-modal-content { background: white; border-radius: 24px; padding: 32px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: slideUp 0.3s cubic-bezier(0.175,0.885,0.32,1.275); }
+    @keyframes slideUp { from { opacity:0; transform: translateY(30px) scale(0.95); } to { opacity:1; transform: translateY(0) scale(1); } }
+    .alert-icon { width: 76px; height: 76px; margin: 0 auto 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 36px; }
+    .alert-icon.success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .alert-icon.error { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+    .alert-icon.warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+    .alert-icon.info { background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: white; }
+    .alert-title { font-size: 21px; font-weight: 800; margin-bottom: 10px; color: var(--text-primary); }
+    .alert-message { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 22px; }
+    .alert-button { width: 100%; padding: 13px; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.3s; font-family: 'DM Sans', inherit; }
+    .alert-button.primary { background: var(--primary); color: white; }
+    .alert-button.warning { background: #f59e0b; color: white; }
+    .alert-button.error { background: var(--error); color: white; }
+
+    /* Thank You */
+    .thankyou-modal { display: none; position: fixed; z-index: 10002; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); justify-content: center; align-items: center; padding: 20px; overflow-y: auto; }
+    .thankyou-modal.show { display: flex; }
+    .thankyou-modal-content { background: white; border-radius: 32px; padding: 44px 36px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,0.3); animation: celebrateIn 0.6s cubic-bezier(0.175,0.885,0.32,1.275); position: relative; overflow: hidden; margin: auto; }
+    @keyframes celebrateIn { 0% { opacity:0; transform: scale(0.5) rotate(-5deg); } 50% { transform: scale(1.05) rotate(2deg); } 100% { opacity:1; transform: scale(1) rotate(0deg); } }
+    .thankyou-icon { width: 90px; height: 90px; margin: 0 auto 20px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-hover)); display: flex; align-items: center; justify-content: center; font-size: 44px; color: white; box-shadow: 0 12px 32px rgba(14,165,233,0.4); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+    .thankyou-title { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 900; margin-bottom: 12px; color: var(--text-primary); }
+    .thankyou-subtitle { font-size: 17px; font-weight: 700; color: var(--primary); margin-bottom: 16px; }
+    .thankyou-message { font-size: 14px; color: var(--text-secondary); line-height: 1.7; margin-bottom: 20px; }
+    .thankyou-privacy { margin: 20px 0; padding: 18px; background: linear-gradient(135deg, rgba(14,165,233,0.08), rgba(16,185,129,0.08)); border-radius: 14px; border: 1.5px solid rgba(14,165,233,0.2); }
+    .thankyou-privacy p { font-size: 13px; color: var(--text-secondary); line-height: 1.7; margin: 0; text-align: left; }
+    .thankyou-actions { display: flex; gap: 12px; }
+    .thankyou-btn { flex: 1; padding: 15px; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.3s; font-family: 'DM Sans', inherit; }
+    .thankyou-btn.primary { background: var(--primary); color: white; box-shadow: 0 6px 20px rgba(14,165,233,0.3); }
+    .thankyou-btn.primary:hover { background: var(--primary-hover); transform: translateY(-3px); }
+    .thankyou-btn.secondary { background: #f1f5f9; color: var(--text-secondary); }
+    .thankyou-btn.secondary:hover { background: #e2e8f0; transform: translateY(-2px); }
+
+    @media (max-width: 600px) {
+      .form-row { grid-template-columns: 1fr; }
+      .landing-box { padding: 36px 22px; }
+      .landing-headline { font-size: 24px; }
+      .step-circle { width: 38px; height: 38px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+<div class="background-decoration">
+  <div class="floating-circle circle-1"></div>
+  <div class="floating-circle circle-2"></div>
+  <div class="floating-circle circle-3"></div>
+</div>
+
+<div class="mobile-header" id="mainHeader" style="display:none;">
+  <div class="mobile-header-left">
+    <div class="mobile-logo-box">AH</div>
+    <div class="mobile-header-title">Careers Portal</div>
+  </div>
+  <div class="mobile-header-right">
+    <button class="mobile-header-btn primary" onclick="showSection('formSection'); goToStep(1);"><i class="fas fa-edit"></i></button>
+    <button class="mobile-header-btn" onclick="showSection('landingSection')"><i class="fas fa-home"></i></button>
+  </div>
+</div>
+
+<!-- LANDING -->
+<div class="section active" id="landingSection">
+  <div class="landing-container">
+    <div class="landing-box">
+      <div class="landing-logo">
+        <img src="https://lh3.googleusercontent.com/pw/AP1GczOxmV8OGtBls0XiKVkw1KnCWol6YBH03jU9TOUhSA9lLdJjfSYvFbiW8QlhWJmaZaYa71f9wV15b5wO_hx7K9WrWH5dw8H3QFO_E8AUD5Dz5LSkkr0=w2400" alt="American Hairline">
+      </div>
+      <h1 class="landing-headline">Build Your Career with <span>American Hairline</span></h1>
+      <p class="landing-subtitle">Join India's premium non-surgical hair replacement company. Apply for a role and our team will reach out within 48 hours.</p>
+      <div class="landing-badges">
+        <div class="trust-badge"><i class="fas fa-shield-alt"></i> Secure & Private</div>
+        <div class="trust-badge"><i class="fas fa-clock"></i> 5 Min Apply</div>
+        <div class="trust-badge"><i class="fas fa-star"></i> Fast Response</div>
+      </div>
+      <button class="btn-start" onclick="startApplication()">
+        <i class="fas fa-paper-plane"></i> Apply Now
+      </button>
+      <div class="privacy-note"><i class="fas fa-lock"></i> Your data is protected and never shared without your consent.</div>
+      <div class="support-dock">
+        <a href="tel:+919324999527" class="dock-item">
+          <div class="dock-icon phone"><i class="fas fa-phone"></i></div>
+          <span class="dock-label">Call HR</span>
+        </a>
+        <a href="https://wa.me/919324999527" target="_blank" class="dock-item">
+          <div class="dock-icon whatsapp"><i class="fab fa-whatsapp"></i></div>
+          <span class="dock-label">WhatsApp</span>
+        </a>
+        <a href="mailto:careers@americanhairline.com" class="dock-item">
+          <div class="dock-icon support"><i class="fas fa-envelope"></i></div>
+          <span class="dock-label">Email HR</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FORM -->
+<div class="section" id="formSection">
+  <div class="container" style="padding-top:30px;">
+    <div style="background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);border-radius:20px;padding:30px;box-shadow:0 4px 20px rgba(0,0,0,0.05);border:1px solid rgba(255,255,255,0.8);">
+
+      <div class="step-navigation-header">
+        <div class="step-circles-container">
+          <div class="step-circle active" data-step="1">1</div>
+          <div class="step-circle" data-step="2">2</div>
+          <div class="step-circle" data-step="3">3</div>
+          <div class="step-circle" data-step="4">4</div>
+          <div class="step-circle" data-step="5">5</div>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="formProgressBar" style="width:0%"></div>
+        </div>
+        <div id="stepTitle">👤 Personal Details</div>
+      </div>
+
+      <form id="applicationForm" onsubmit="return false;">
+
+        <!-- STEP 1 -->
+        <div class="form-step active" id="step1">
+          <h3>👤 Personal Details</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Full Name <span class="required-star">*</span></label>
+              <input type="text" id="fFullName" class="form-control" placeholder="Your full name" required>
+            </div>
+            <div class="form-group">
+              <label>Gender <span class="required-star">*</span></label>
+              <select id="fGender" class="form-control" required>
+                <option value="">— Select —</option>
+                <option>Male</option><option>Female</option><option>Other</option><option>Prefer not to say</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>WhatsApp Number <span class="required-star">*</span></label>
+              <input type="tel" id="fWhatsApp" class="form-control" placeholder="10-digit number" maxlength="10" required>
+            </div>
+            <div class="form-group">
+              <label>Email Address</label>
+              <input type="email" id="fEmail" class="form-control" placeholder="you@email.com">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>City <span class="required-star">*</span></label>
+              <select id="fCity" class="form-control" required>
+                <option value="">— Select City —</option>
+                <option>Mumbai</option><option>Delhi</option><option>Bangalore</option>
+                <option>Hyderabad</option><option>Chennai</option><option>Kolkata</option>
+                <option>Pune</option><option>Ahmedabad</option><option>Lucknow</option>
+                <option>Jaipur</option><option>Ludhiana</option><option>Surat</option>
+                <option>Indore</option><option>Bhopal</option><option>Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Area / Locality</label>
+              <input type="text" id="fTown" class="form-control" placeholder="Locality / Area">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Date of Birth</label>
+              <input type="date" id="fDOB" class="form-control">
+            </div>
+            <div class="form-group">
+              <label>How did you hear about us? <span class="required-star">*</span></label>
+              <select id="fSource" class="form-control" required onchange="toggleOther('fSource','sourceOtherWrap')">
+                <option value="">— Select —</option>
+                <option>Instagram</option>
+                <option>Facebook</option>
+                <option>Google</option>
+                <option>Referral / Word of Mouth</option>
+                <option>LinkedIn</option>
+                <option>Naukri.com</option>
+                <option>Indeed</option>
+                <option>Internshala</option>
+                <option>Shine.com</option>
+                <option>Monster India</option>
+                <option>WhatsApp</option>
+                <option>YouTube</option>
+                <option>Company Website</option>
+                <option>Walk-in</option>
+                <option>Other</option>
+              </select>
+              <div class="other-input-wrap" id="sourceOtherWrap">
+                <input type="text" id="fSourceOther" class="form-control" placeholder="Please specify...">
+              </div>
+            </div>
+          </div>
+
+          <!-- Q5: Location stability -->
+          <div class="form-section-title"><i class="fas fa-map-marker-alt"></i> Current Living Situation</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Where are you staying right now?</label>
+              <input type="text" id="fStayingPlace" class="form-control" placeholder="City / area where you currently live">
+            </div>
+            <div class="form-group">
+              <label>Living arrangement</label>
+              <select id="fLivingArrangement" class="form-control">
+                <option value="">— Select —</option>
+                <option>Staying with family</option>
+                <option>Living alone</option>
+                <option>Sharing with flatmates / friends</option>
+                <option>Hostel / PG</option>
+                <option>Company accommodation</option>
+                <option>Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-navigation">
+            <button type="button" class="btn secondary" style="visibility:hidden;">Back</button>
+            <button type="button" class="btn" onclick="nextStep(1)">Next →</button>
+          </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="form-step" id="step2">
+          <h3>💼 Professional Background</h3>
+
+          <div class="form-group">
+            <label>Position Applied For <span class="required-star">*</span></label>
+            <select id="fPosition" class="form-control" required onchange="toggleOther('fPosition','positionOtherWrap'); updateSalesTestVisibility();">
+              <option value="">— Select Role —</option>
+              <optgroup label="🧴 Hair & Beauty">
+                <option>Hair Consultant</option>
+                <option>Hair Stylist / Technician</option>
+                <option>Hair Replacement Specialist</option>
+                <option>Trichologist</option>
+                <option>Beauty Therapist</option>
+                <option>Scalp Treatment Specialist</option>
+              </optgroup>
+              <optgroup label="💼 Sales & Business">
+                <option>Sales Executive</option>
+                <option>Senior Sales Executive</option>
+                <option>Business Development Executive</option>
+                <option>Business Development Manager</option>
+                <option>Key Account Manager</option>
+                <option>Regional Sales Manager</option>
+                <option>Zonal Sales Manager</option>
+                <option>National Sales Manager</option>
+              </optgroup>
+              <optgroup label="🏪 Store & Operations">
+                <option>Store Manager</option>
+                <option>Assistant Store Manager</option>
+                <option>Operations Executive</option>
+                <option>Operations Manager</option>
+                <option>Franchise Manager</option>
+              </optgroup>
+              <optgroup label="📞 Customer Support">
+                <option>Customer Support Executive</option>
+                <option>Customer Relationship Manager</option>
+                <option>CRM Executive</option>
+                <option>After Sales Support Executive</option>
+              </optgroup>
+              <optgroup label="📣 Marketing">
+                <option>Marketing Executive</option>
+                <option>Digital Marketing Executive</option>
+                <option>Social Media Manager</option>
+                <option>Content Creator / Influencer</option>
+                <option>Brand Manager</option>
+                <option>PR Executive</option>
+              </optgroup>
+              <optgroup label="🖥️ Tech & Admin">
+                <option>HR Executive</option>
+                <option>HR Manager</option>
+                <option>Accounts Executive</option>
+                <option>Admin Executive</option>
+                <option>IT Executive</option>
+                <option>Data Analyst</option>
+                <option>AI Developer</option>
+              </optgroup>
+              <optgroup label="🎓 Fresher / Intern">
+                <option>Management Trainee</option>
+                <option>Sales Intern</option>
+                <option>Marketing Intern</option>
+                <option>Operations Intern</option>
+              </optgroup>
+              <option value="Other">Other (specify below)</option>
+            </select>
+            <div class="other-input-wrap" id="positionOtherWrap">
+              <input type="text" id="fPositionOther" class="form-control" placeholder="Please specify the role...">
+            </div>
+          </div>
+
+          <!-- Q2: Employment status -->
+          <div class="form-group">
+            <label>Are you currently working? <span class="required-star">*</span></label>
+            <select id="fEmploymentStatus" class="form-control" required onchange="updateEmploymentBranches()">
+              <option value="">— Select —</option>
+              <option value="Working">Yes, I am currently working</option>
+              <option value="NotWorking">No, I have already left my last job</option>
+              <option value="Fresher">I am a fresher (never worked before)</option>
+            </select>
+          </div>
+
+          <!-- Q3 / Q4 WORKING branch -->
+          <div class="conditional-block" id="workingBlock">
+            <div class="form-section-title"><i class="fas fa-briefcase"></i> About Your Current Job</div>
+            <div class="form-group">
+              <label>What is your current role / main responsibilities?</label>
+              <textarea id="fCurrentRole" class="form-control" rows="3" placeholder="Describe your role and what you are responsible for day to day..."></textarea>
+            </div>
+            <div class="form-group">
+              <label>Why are you looking to change your job?</label>
+              <p class="field-help">Be honest — what is missing for you there? (growth, salary, work environment, distance, etc.)</p>
+              <textarea id="fReasonChange" class="form-control" rows="3" placeholder="Tell us the real reason you want a change..."></textarea>
+            </div>
+          </div>
+
+          <!-- Q3 / Q4 NOT-WORKING branch -->
+          <div class="conditional-block" id="notWorkingBlock">
+            <div class="form-section-title"><i class="fas fa-door-open"></i> About Your Last Job</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>When did you leave your last job?</label>
+                <input type="month" id="fLeftDate" class="form-control">
+              </div>
+              <div class="form-group">
+                <label>Main reason for leaving</label>
+                <select id="fLeaveReason" class="form-control">
+                  <option value="">— Select —</option>
+                  <option>Work / Job role</option>
+                  <option>Salary</option>
+                  <option>Growth / Career progression</option>
+                  <option>Relocation / Distance</option>
+                  <option>Company closed / Layoff</option>
+                  <option>Personal / Family reasons</option>
+                  <option>Health reasons</option>
+                  <option>Higher studies</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Tell us more about why you decided to leave</label>
+              <textarea id="fLeaveReasonDetail" class="form-control" rows="3" placeholder="Explain in your own words..."></textarea>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Total Experience <span class="required-star">*</span></label>
+              <select id="fExperience" class="form-control" required>
+                <option value="">— Select —</option>
+                <option>Fresher (0 years)</option>
+                <option>Less than 1 year</option>
+                <option>1-2 years</option>
+                <option>2-3 years</option>
+                <option>3-5 years</option>
+                <option>5-8 years</option>
+                <option>8-10 years</option>
+                <option>10+ years</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Highest Education</label>
+              <select id="fEducation" class="form-control" onchange="toggleOther('fEducation','educationOtherWrap')">
+                <option value="">— Select —</option>
+                <option>10th / SSC</option>
+                <option>12th / HSC</option>
+                <option>Diploma</option>
+                <option>ITI / Vocational</option>
+                <option>Graduate (BA/B.Com/B.Sc)</option>
+                <option>Graduate (BBA/BCA/B.Tech)</option>
+                <option>Post Graduate (MBA/MCA/M.Tech)</option>
+                <option>Hair & Beauty Diploma</option>
+                <option>Cosmetology Certificate</option>
+                <option>Other</option>
+              </select>
+              <div class="other-input-wrap" id="educationOtherWrap">
+                <input type="text" id="fEducationOther" class="form-control" placeholder="Please specify...">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Current / Last Company</label>
+              <input type="text" id="fCurrentCompany" class="form-control" placeholder="Company name">
+            </div>
+            <div class="form-group">
+              <label>Current Designation</label>
+              <input type="text" id="fCurrentDesignation" class="form-control" placeholder="Your current role">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Current / Last CTC</label>
+              <p class="field-help">An approximate number is fine.</p>
+              <input type="text" id="fCurrentSalary" class="form-control" placeholder="₹30,000/month">
+            </div>
+            <div class="form-group">
+              <label>Expected CTC <span class="required-star">*</span></label>
+              <input type="text" id="fExpectedSalary" class="form-control" placeholder="₹45,000/month" required>
+            </div>
+          </div>
+
+          <!-- Q9: salary jump justification -->
+          <div class="form-group">
+            <label>If your expected salary is a big jump, what makes you confident you can justify it?</label>
+            <textarea id="fSalaryJustification" class="form-control" rows="2" placeholder="What value / results will you bring? (Leave blank if not applicable)"></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Notice Period</label>
+              <select id="fNoticePeriod" class="form-control">
+                <option value="">— Select —</option>
+                <option>Immediately Available</option>
+                <option>7 days</option>
+                <option>15 days</option>
+                <option>30 days</option>
+                <option>45 days</option>
+                <option>60 days</option>
+                <option>90 days</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Availability to Join</label>
+              <select id="fAvailability" class="form-control">
+                <option value="">— Select —</option>
+                <option>Immediately</option>
+                <option>Within 1 week</option>
+                <option>Within 2 weeks</option>
+                <option>Within a month</option>
+                <option>After 1 month</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Q6: Work history summary -->
+          <div class="form-group">
+            <label>Briefly, what kind of work have you done till now?</label>
+            <p class="field-help">Give a short summary of your career and what exactly you were responsible for.</p>
+            <textarea id="fWorkHistory" class="form-control" rows="3" placeholder="e.g. Worked 2 years in retail sales handling walk-in customers, then 1 year as a team lead..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Key Skills</label>
+            <input type="text" id="fSkills" class="form-control" placeholder="e.g. Sales, Hair Styling, Client Consultation, Team Management">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Languages Known</label>
+              <input type="text" id="fLanguages" class="form-control" placeholder="Hindi, English, Marathi...">
+            </div>
+            <div class="form-group">
+              <label>LinkedIn Profile</label>
+              <input type="url" id="fLinkedIn" class="form-control" placeholder="linkedin.com/in/yourprofile">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Portfolio / Website URL</label>
+            <input type="url" id="fPortfolio" class="form-control" placeholder="https://yourportfolio.com">
+          </div>
+
+          <div class="form-group">
+            <label>References (Optional)</label>
+            <input type="text" id="fReferences" class="form-control" placeholder="Name, contact of 1-2 professional references">
+          </div>
+
+          <div class="form-navigation">
+            <button type="button" class="btn secondary" onclick="prevStep(2)">← Back</button>
+            <button type="button" class="btn" onclick="nextStep(2)">Next →</button>
+          </div>
+        </div>
+
+        <!-- STEP 3 — SCREENING QUESTIONS (NEW) -->
+        <div class="form-step" id="step3">
+          <h3>🎯 A Few Real Questions</h3>
+          <div class="info-hint">
+            <i class="fas fa-lightbulb"></i>
+            There are no right or wrong answers here. Please be honest and use real examples — this is the most important part of your application.
+          </div>
+
+          <!-- Q7: CORE FILTER -->
+          <div class="form-section-title"><i class="fas fa-bullseye"></i> Your Strengths</div>
+          <div class="form-group">
+            <label>What are the top 3 things you are really good at? <span class="required-star">*</span></label>
+            <p class="field-help">Things you have actually done before and are confident you can do very well. Avoid generic words like "hardworking" — give concrete skills.</p>
+            <textarea id="fTopStrengths" class="form-control" rows="3" placeholder="1. ...&#10;2. ...&#10;3. ..." required></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Which one of these are you BEST at? <span class="required-star">*</span></label>
+              <input type="text" id="fBestStrength" class="form-control" placeholder="Your single strongest skill" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Tell us one real situation where you did this really well <span class="required-star">*</span></label>
+            <p class="field-help">A specific example — what was the situation, what you did, and the result.</p>
+            <textarea id="fStrengthProof" class="form-control" rows="3" placeholder="Describe one real example with the outcome..." required></textarea>
+          </div>
+
+          <!-- Q12: Pressure test -->
+          <div class="form-section-title"><i class="fas fa-fire"></i> Handling Pressure</div>
+          <div class="form-group">
+            <label>When work becomes difficult or there is pressure, what do you usually do? <span class="required-star">*</span></label>
+            <p class="field-help">Please give one real example of a difficult/high-pressure situation and how you handled it.</p>
+            <textarea id="fPressureHandling" class="form-control" rows="3" placeholder="Describe a real pressure situation and how you dealt with it..." required></textarea>
+          </div>
+
+          <!-- Q13: Sales test (conditional) -->
+          <div class="conditional-block" id="salesTestBlock">
+            <div class="form-section-title"><i class="fas fa-handshake"></i> Sales Scenario</div>
+            <div class="form-group">
+              <label>If a client says your service is too expensive, what will you say? <span class="required-star">*</span></label>
+              <textarea id="fSalesObjection" class="form-control" rows="3" placeholder="How would you respond to the client?"></textarea>
+            </div>
+            <div class="form-group">
+              <label>And if the client still says no, what will you do?</label>
+              <textarea id="fSalesPersistence" class="form-control" rows="2" placeholder="Your next move..."></textarea>
+            </div>
+          </div>
+
+          <!-- Q10 & Q11: Commitment filter -->
+          <div class="form-section-title"><i class="fas fa-seedling"></i> Long-Term Commitment</div>
+          <div class="form-group">
+            <label>Are you seriously looking for a long-term job, or just exploring options? <span class="required-star">*</span></label>
+            <select id="fIntent" class="form-control" required>
+              <option value="">— Select —</option>
+              <option>Seriously looking for a long-term role</option>
+              <option>Open, but want to see if it's the right fit</option>
+              <option>Just exploring options right now</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>We invest a lot in training. If things go well, how long do you see yourself working with us? <span class="required-star">*</span></label>
+            <select id="fTenureExpectation" class="form-control" required>
+              <option value="">— Select —</option>
+              <option>Less than 1 year</option>
+              <option>1-2 years</option>
+              <option>2-3 years</option>
+              <option>3-5 years</option>
+              <option>5+ years / long term</option>
+              <option>As long as I keep growing here</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>What usually makes you stay in a company?</label>
+            <textarea id="fStayReason" class="form-control" rows="2" placeholder="e.g. good growth, supportive team, learning, fair pay..."></textarea>
+          </div>
+
+          <div class="form-navigation">
+            <button type="button" class="btn secondary" onclick="prevStep(3)">← Back</button>
+            <button type="button" class="btn" onclick="nextStep(3)">Next →</button>
+          </div>
+        </div>
+
+        <!-- STEP 4 — ADDITIONAL INFO (was step 3) -->
+        <div class="form-step" id="step4">
+          <h3>📝 Additional Information</h3>
+          <div class="form-group">
+            <label>Why do you want to join American Hairline?</label>
+            <textarea id="fWhyJoin" class="form-control" rows="4" placeholder="Tell us why you're excited about this opportunity..."></textarea>
+          </div>
+          <div class="form-section-title"><i class="fas fa-star"></i> Achievements & Training</div>
+          <div class="form-group">
+            <label>Notable Achievements / Awards</label>
+            <textarea id="fAchievements" class="form-control" rows="3" placeholder="Sales records, certifications, awards received..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Specialized Training / Certifications</label>
+            <textarea id="fCertifications" class="form-control" rows="3" placeholder="Hair styling courses, sales training, management programs..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Additional Notes / Message to HR</label>
+            <textarea id="fNotes" class="form-control" rows="3" placeholder="Anything else you'd like us to know..."></textarea>
+          </div>
+          <div class="form-section-title"><i class="fas fa-check-square"></i> Declaration</div>
+          <div class="checkbox-group">
+            <div class="checkbox-item">
+              <input type="checkbox" id="declarationAccurate">
+              <label for="declarationAccurate">I confirm all information provided is accurate and complete to the best of my knowledge.</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="declarationConsent">
+              <label for="declarationConsent">I consent to American Hairline storing and processing my data for recruitment purposes.</label>
+            </div>
+          </div>
+          <div class="form-navigation">
+            <button type="button" class="btn secondary" onclick="prevStep(4)">← Back</button>
+            <button type="button" class="btn" onclick="nextStep(4)">Next →</button>
+          </div>
+        </div>
+
+        <!-- STEP 5 — RESUME (was step 4) -->
+        <div class="form-step" id="step5">
+          <h3>📄 Resume Upload</h3>
+          <div class="info-hint">
+            <i class="fas fa-info-circle"></i>
+            Upload your latest resume or CV. It will be saved to Google Drive and sent to HR via WhatsApp after submission.
+          </div>
+          <div class="form-group">
+            <label>Resume / CV <span class="required-star">*</span></label>
+            <div class="doc-upload-area" id="resumeUploadArea" onclick="document.getElementById('resumeInput').click()">
+              <input type="file" id="resumeInput" accept=".pdf,.doc,.docx" style="display:none;" onchange="handleResumeUpload(this)">
+              <div class="doc-upload-icon"><i class="fas fa-file-pdf"></i></div>
+              <div class="doc-upload-label">Click to upload your Resume / CV<br><span style="font-size:11px;opacity:0.7">PDF preferred · DOC / DOCX accepted · Max 2MB</span></div>
+              <div class="doc-upload-file-name" id="resumeFileName"></div>
+            </div>
+          </div>
+          <div class="form-navigation">
+            <button type="button" class="btn secondary" onclick="prevStep(5)">← Back</button>
+            <button type="button" class="btn" onclick="submitApplication()" id="submitBtn">
+              <i class="fas fa-paper-plane"></i> Submit Application
+            </button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- PORTAL -->
+<div class="section portal-wrapper" id="portalSection">
+  <div class="container" style="padding-top:30px;padding-bottom:40px;">
+    <div class="profile-card">
+      <div class="profile-header">
+        <div class="profile-avatar"><i class="fas fa-user-tie"></i></div>
+        <div class="profile-info">
+          <h2 id="clientName">Loading...</h2>
+          <div class="profile-badges">
+            <span class="badge" id="clientCity">...</span>
+            <span class="badge success" id="clientStatus">Applied ✓</span>
+          </div>
+        </div>
+      </div>
+      <div class="action-buttons">
+        <button class="action-btn" onclick="window.open('https://wa.me/919324999527','_blank')"><i class="fab fa-whatsapp"></i> Contact HR</button>
+        <button class="action-btn" onclick="showSection('formSection'); goToStep(1);"><i class="fas fa-edit"></i> Edit Application</button>
+      </div>
+    </div>
+    <div class="completeness-card" id="completenessCard">
+      <div class="completeness-header">
+        <h3>Application Completeness</h3>
+        <span class="completeness-percentage" id="completenessPercentage">0%</span>
+      </div>
+      <div class="completeness-bar"><div class="completeness-bar-fill" id="completenessBarFill" style="width:0%"></div></div>
+      <p style="font-size:13px;opacity:0.9;">Complete your profile to improve your chances of selection.</p>
+      <button class="btn" style="background:white;color:var(--primary);margin-top:14px;border:none;" onclick="showSection('formSection'); goToStep(1);">Complete Application</button>
+    </div>
+    <div class="completeness-card" id="startInterviewCard" style="display:none; background: linear-gradient(135deg, var(--primary) 0%, #2563eb 100%); color: white; text-align: center; cursor: pointer; padding: 24px;">
+      <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;"><i class="fas fa-play-circle" style="font-size: 24px; margin-right: 8px; vertical-align: middle;"></i> <span style="vertical-align: middle;">Start AI Interview</span></div>
+      <p style="font-size: 14px; opacity: 0.9; margin: 0;">Your customized technical assessment is ready.</p>
+    </div>
+    <div class="photos-card" id="resumeCard" style="display:none;">
+      <h4><i class="fas fa-file-pdf"></i> Uploaded Resume</h4>
+      <div id="resumeDisplay"></div>
+    </div>
+    <div id="infoCardsContainer"></div>
+  </div>
+</div>
+
+<!-- Voice recording toast -->
+<div class="voice-toast" id="voiceToast"><span class="rec-dot"></span><span id="voiceToastText">Listening… speak now</span></div>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div style="background:white;padding:32px;border-radius:20px;text-align:center;min-width:200px;">
+    <div class="spinner"></div>
+    <div style="font-size:14px;font-weight:700;color:var(--text-primary);" id="loadingText">Submitting application...</div>
+  </div>
+</div>
+
+<!-- Alert Modal -->
+<div class="alert-modal" id="alertModal">
+  <div class="alert-modal-content">
+    <div class="alert-icon" id="alertIcon"><i class="fas fa-check"></i></div>
+    <h3 class="alert-title" id="alertTitle">Success!</h3>
+    <p class="alert-message" id="alertMessage"></p>
+    <button class="alert-button primary" id="alertButton" onclick="document.getElementById('alertModal').classList.remove('show')">Got it!</button>
+  </div>
+</div>
+
+<!-- Thank You Modal -->
+<div class="thankyou-modal" id="thankyouModal">
+  <div class="thankyou-modal-content">
+    <div class="thankyou-icon"><i class="fas fa-check-circle"></i></div>
+    <h2 class="thankyou-title">You're In! 🎉</h2>
+    <h3 class="thankyou-subtitle">Application Submitted Successfully</h3>
+    <p class="thankyou-message">Thank you for applying to American Hairline! Our HR team will review your application and contact you within 48 hours.</p>
+    <div class="thankyou-privacy">
+      <p><span style="margin-right:8px;font-size:16px;">🔒</span><strong>Your data is safe with us.</strong> We follow strict privacy measures and never share your information without consent.</p>
+    </div>
+    <div class="thankyou-actions">
+      <button class="thankyou-btn secondary" onclick="document.getElementById('thankyouModal').classList.remove('show'); showSection('formSection'); goToStep(1);"><i class="fas fa-edit"></i> Edit</button>
+      <button class="thankyou-btn primary" id="startInterviewBtn" onclick="document.getElementById('thankyouModal').classList.remove('show');"><i class="fas fa-arrow-right"></i> View Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var currentStep = 1;
+  var resumeData = null;
+  var savedData = null;
+  var TOTAL_STEPS = 5;
+
+  const stepTitles = {
+    1: '👤 Personal Details',
+    2: '💼 Professional Background',
+    3: '🎯 A Few Real Questions',
+    4: '📝 Additional Information',
+    5: '📄 Resume Upload'
+  };
+
+  // Roles that should see the sales objection scenario (Q13)
+  var SALES_KEYWORDS = ['sales', 'business development', 'crm', 'customer relationship', 'key account', 'consultant', 'after sales'];
+
+  function isSalesRole() {
+    var pos = getFieldValue('fPosition', 'fPositionOther').toLowerCase();
+    if (!pos) return false;
+    return SALES_KEYWORDS.some(function(k) { return pos.indexOf(k) !== -1; });
+  }
+
+  function updateSalesTestVisibility() {
+    var block = document.getElementById('salesTestBlock');
+    if (!block) return;
+    block.classList.toggle('show', isSalesRole());
+  }
+
+  function updateEmploymentBranches() {
+    var status = document.getElementById('fEmploymentStatus').value;
+    document.getElementById('workingBlock').classList.toggle('show', status === 'Working');
+    document.getElementById('notWorkingBlock').classList.toggle('show', status === 'NotWorking');
+  }
+
+  function toggleOther(selectId, wrapId) {
+    var sel = document.getElementById(selectId);
+    var wrap = document.getElementById(wrapId);
+    if (!sel || !wrap) return;
+    wrap.classList.toggle('show', sel.value === 'Other');
+  }
+
+  function startApplication() {
+    showSection('formSection');
+    goToStep(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showSection(id) {
+    document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+    document.getElementById('mainHeader').style.display = id !== 'landingSection' ? 'flex' : 'none';
+  }
+
+  function goToStep(n) {
+    document.querySelectorAll('.form-step').forEach(function(s) { s.classList.remove('active'); });
+    document.getElementById('step' + n).classList.add('active');
+    currentStep = n;
+    updateStepIndicators(n);
+    if (n === 3) updateSalesTestVisibility();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updateStepIndicators(step) {
+    document.querySelectorAll('.step-circle').forEach(function(c, i) {
+      c.classList.remove('active', 'completed');
+      if (i + 1 === step) c.classList.add('active');
+      else if (i + 1 < step) c.classList.add('completed');
+    });
+    document.getElementById('formProgressBar').style.width = (((step - 1) / (TOTAL_STEPS - 1)) * 100) + '%';
+    document.getElementById('stepTitle').textContent = stepTitles[step];
+  }
+
+  function nextStep(step) { if (validateStep(step)) goToStep(step + 1); }
+  function prevStep(step) { goToStep(step - 1); }
+
+  function clearFieldError(el) {
+    el.classList.remove('field-error');
+    var label = el.closest && el.closest('.form-group') && el.closest('.form-group').querySelector('label');
+    if (label) label.classList.remove('field-error-label');
+  }
+
+  function setFieldError(el) {
+    el.classList.add('field-error');
+    var label = el.closest && el.closest('.form-group') && el.closest('.form-group').querySelector('label');
+    if (label) label.classList.add('field-error-label');
+    el.addEventListener('change', function() { clearFieldError(el); }, { once: true });
+    el.addEventListener('input', function() { clearFieldError(el); }, { once: true });
+  }
+
+  function showAlert(message, type, title) {
+    type = type || 'info';
+    var icons = { success: '<i class="fas fa-check-circle"></i>', error: '<i class="fas fa-times-circle"></i>', warning: '<i class="fas fa-exclamation-triangle"></i>', info: '<i class="fas fa-info-circle"></i>' };
+    var titles = { success: 'Success!', error: 'Oops!', warning: 'Attention', info: 'Notice' };
+    document.getElementById('alertIcon').className = 'alert-icon ' + type;
+    document.getElementById('alertIcon').innerHTML = icons[type];
+    document.getElementById('alertTitle').textContent = title || titles[type];
+    document.getElementById('alertMessage').textContent = message;
+    document.getElementById('alertButton').className = 'alert-button ' + type;
+    document.getElementById('alertButton').textContent = type === 'success' ? 'Awesome!' : 'Got it!';
+    document.getElementById('alertModal').classList.add('show');
+  }
+
+  function getFieldValue(selectId, otherInputId) {
+    var sel = document.getElementById(selectId);
+    if (!sel) return '';
+    if (sel.value === 'Other' && otherInputId) {
+      var other = document.getElementById(otherInputId);
+      return (other && other.value.trim()) ? other.value.trim() : 'Other';
+    }
+    return sel.value;
+  }
+
+  function validateRequiredIds(ids, warnMsg, warnTitle) {
+    var valid = true, first = null;
+    ids.forEach(function(id) {
+      var f = document.getElementById(id);
+      if (!f) return;
+      if (!f.value.trim()) { setFieldError(f); valid = false; if (!first) first = f; }
+      else clearFieldError(f);
+    });
+    if (!valid) {
+      showAlert(warnMsg, 'warning', warnTitle);
+      if (first) { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); first.focus(); }
+    }
+    return valid;
+  }
+
+  function validateStep(step) {
+    if (step === 1) {
+      return validateRequiredIds(['fFullName', 'fWhatsApp', 'fCity', 'fGender', 'fSource'],
+        'Please fill all required fields to continue.', 'Missing Fields');
+    }
+    if (step === 2) {
+      return validateRequiredIds(['fPosition', 'fEmploymentStatus', 'fExperience', 'fExpectedSalary'],
+        'Please fill all required fields.', 'Missing Fields');
+    }
+    if (step === 3) {
+      var req = ['fTopStrengths', 'fBestStrength', 'fStrengthProof', 'fPressureHandling', 'fIntent', 'fTenureExpectation'];
+      if (isSalesRole()) req.push('fSalesObjection');
+      return validateRequiredIds(req,
+        'Please answer all the required screening questions — these matter most.', 'A Few Answers Needed');
+    }
+    if (step === 4) {
+      if (!document.getElementById('declarationAccurate').checked || !document.getElementById('declarationConsent').checked) {
+        showAlert('Please accept the declaration and consent to proceed.', 'warning', 'Declaration Required');
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function handleResumeUpload(input) {
+    var file = input.files[0]; if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { showAlert('Resume must be under 2MB. Please compress and re-upload.', 'warning', 'File Too Large'); input.value = ''; return; }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      resumeData = { name: file.name, data: e.target.result, type: file.type };
+      document.getElementById('resumeUploadArea').classList.add('has-file');
+      document.getElementById('resumeFileName').textContent = '✓ ' + file.name;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function submitApplication() {
+    if (!resumeData) {
+      showAlert('Please upload your Resume / CV to complete your application.', 'warning', 'Resume Required');
+      return;
+    }
+
+    savedData = {
+      // Step 1 — Personal
+      fullName:        document.getElementById('fFullName').value,
+      whatsapp:        document.getElementById('fWhatsApp').value.trim(),
+      email:           document.getElementById('fEmail').value,
+      gender:          document.getElementById('fGender').value,
+      city:            document.getElementById('fCity').value,
+      town:            document.getElementById('fTown').value,
+      dob:             document.getElementById('fDOB').value,
+      source:          getFieldValue('fSource', 'fSourceOther'),
+      stayingPlace:    document.getElementById('fStayingPlace').value,
+      livingArrangement: document.getElementById('fLivingArrangement').value,
+
+      // Step 2 — Professional
+      positionApplied: getFieldValue('fPosition', 'fPositionOther'),
+      employmentStatus: document.getElementById('fEmploymentStatus').value,
+      currentRole:     document.getElementById('fCurrentRole').value,
+      reasonChange:    document.getElementById('fReasonChange').value,
+      leftDate:        document.getElementById('fLeftDate').value,
+      leaveReason:     document.getElementById('fLeaveReason').value,
+      leaveReasonDetail: document.getElementById('fLeaveReasonDetail').value,
+      experience:      document.getElementById('fExperience').value,
+      education:       getFieldValue('fEducation', 'fEducationOther'),
+      currentCompany:  document.getElementById('fCurrentCompany').value,
+      currentDesignation: document.getElementById('fCurrentDesignation').value,
+      currentSalary:   document.getElementById('fCurrentSalary').value,
+      expectedSalary:  document.getElementById('fExpectedSalary').value,
+      salaryJustification: document.getElementById('fSalaryJustification').value,
+      noticePeriod:    document.getElementById('fNoticePeriod').value,
+      availability:    document.getElementById('fAvailability').value,
+      workHistory:     document.getElementById('fWorkHistory').value,
+      skills:          document.getElementById('fSkills').value,
+      languages:       document.getElementById('fLanguages').value,
+      linkedinUrl:     document.getElementById('fLinkedIn').value,
+      portfolioUrl:    document.getElementById('fPortfolio').value,
+      references:      document.getElementById('fReferences').value,
+
+      // Step 3 — Screening
+      topStrengths:    document.getElementById('fTopStrengths').value,
+      bestStrength:    document.getElementById('fBestStrength').value,
+      strengthProof:   document.getElementById('fStrengthProof').value,
+      pressureHandling: document.getElementById('fPressureHandling').value,
+      salesObjection:  document.getElementById('fSalesObjection').value,
+      salesPersistence: document.getElementById('fSalesPersistence').value,
+      intent:          document.getElementById('fIntent').value,
+      tenureExpectation: document.getElementById('fTenureExpectation').value,
+      stayReason:      document.getElementById('fStayReason').value,
+
+      // Step 4 — Additional
+      whyJoin:         document.getElementById('fWhyJoin').value,
+      achievements:    document.getElementById('fAchievements').value,
+      certifications:  document.getElementById('fCertifications').value,
+      notes:           document.getElementById('fNotes').value,
+
+      resume: resumeData
+    };
+
+    document.getElementById('loadingText').textContent = 'Submitting your application...';
+    document.getElementById('loadingOverlay').classList.add('show');
+
+    var API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? window.location.protocol + '//' + window.location.hostname + ':3000' : '';
+
+    fetch(API_BASE + '/api/save-application', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(savedData)
+    })
+    .then(function(res) {
+      if (res.status === 413) throw new Error('PAYLOAD_TOO_LARGE');
+      if (!res.ok) throw new Error('SERVER_ERROR_' + res.status);
+      return res.json();
+    })
+    .then(function(result) {
+      document.getElementById('loadingOverlay').classList.remove('show');
+      if (result.success) {
+        loadApplicantPortal(savedData, result.resumeLink, result.interviewId);
+        
+        // The "Start AI Interview" button is now located directly on the dashboard screen
+        setTimeout(function() { document.getElementById('thankyouModal').classList.add('show'); }, 400);
+      } else {
+        showAlert(result.message || 'Failed to submit. Please try again.', 'error', 'Submission Failed');
+      }
+    })
+    .catch(function(err) {
+      document.getElementById('loadingOverlay').classList.remove('show');
+      if (err.message === 'PAYLOAD_TOO_LARGE') {
+        showAlert('Resume file is too large. Please compress it and try again.', 'warning', 'File Too Large');
+      } else {
+        showAlert('Could not reach server. Please try again or contact HR.', 'error', 'Connection Error');
+      }
+    });
+  }
+
+  function loadApplicantPortal(data, driveLink, interviewId) {
+    document.getElementById('clientName').textContent = data.fullName || 'Applicant';
+    document.getElementById('clientCity').textContent = '📍 ' + (data.city || 'Not set');
+
+    var startCard = document.getElementById('startInterviewCard');
+    if (interviewId) {
+      startCard.onclick = function() {
+        window.open('https://hireos-web.vercel.app/test/' + interviewId, '_blank');
+      };
+    }
+
+    var fields = ['fullName','city','positionApplied','experience','expectedSalary','topStrengths','strengthProof','pressureHandling','tenureExpectation','whyJoin','skills'];
+    var filled = fields.filter(function(f) { return data[f] && data[f].toString().trim(); }).length;
+    var hasResume = resumeData ? 1 : 0;
+    var pct = Math.round(((filled + hasResume) / (fields.length + 1)) * 100);
+    document.getElementById('completenessPercentage').textContent = pct + '%';
+    document.getElementById('completenessBarFill').style.width = pct + '%';
+    document.getElementById('completenessCard').style.display = pct < 100 ? 'block' : 'none';
+    
+    if (pct === 100 && interviewId) {
+      document.getElementById('startInterviewCard').style.display = 'block';
+    } else {
+      document.getElementById('startInterviewCard').style.display = 'none';
+    }
+
+    var resumeDisplay = document.getElementById('resumeDisplay');
+    if (resumeData) {
+      var linkHtml = driveLink ? '<a href="' + driveLink + '" target="_blank" style="font-size:11px;color:var(--primary);font-weight:600;">View on Drive ↗</a>' : '<div style="font-size:11px;color:var(--text-secondary);">Sent to HR via WhatsApp ✓</div>';
+      resumeDisplay.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border-radius:10px;"><i class="fas fa-file-pdf" style="font-size:24px;color:#ef4444;"></i><div><div style="font-size:13px;font-weight:700;">' + resumeData.name + '</div>' + linkHtml + '</div></div>';
+      document.getElementById('resumeCard').style.display = 'block';
+    }
+
+    var container = document.getElementById('infoCardsContainer');
+    container.innerHTML = '';
+    container.innerHTML += createInfoCard('👤 Personal Info', [
+      { label: 'Name', value: data.fullName },
+      { label: 'WhatsApp', value: data.whatsapp },
+      { label: 'Email', value: data.email },
+      { label: 'Gender', value: data.gender },
+      { label: 'City', value: data.city + (data.town ? ', ' + data.town : '') },
+      { label: 'Staying at', value: data.stayingPlace },
+      { label: 'Living', value: data.livingArrangement },
+      { label: 'DOB', value: data.dob ? formatDate(data.dob) : '' },
+      { label: 'Heard via', value: data.source }
+    ]);
+    container.innerHTML += createInfoCard('💼 Professional', [
+      { label: 'Position', value: data.positionApplied },
+      { label: 'Status', value: data.employmentStatus },
+      { label: 'Experience', value: data.experience },
+      { label: 'Education', value: data.education },
+      { label: 'Current Company', value: data.currentCompany },
+      { label: 'Current CTC', value: data.currentSalary },
+      { label: 'Expected CTC', value: data.expectedSalary },
+      { label: 'Notice Period', value: data.noticePeriod },
+      { label: 'Availability', value: data.availability },
+      { label: 'Reason for change', value: data.reasonChange || data.leaveReasonDetail }
+    ]);
+    container.innerHTML += createInfoCard('🎯 Screening', [
+      { label: 'Top 3 strengths', value: data.topStrengths, stacked: true },
+      { label: 'Best at', value: data.bestStrength },
+      { label: 'Proof / example', value: data.strengthProof, stacked: true },
+      { label: 'Handling pressure', value: data.pressureHandling, stacked: true },
+      { label: 'Sales objection', value: data.salesObjection, stacked: true },
+      { label: 'Long-term intent', value: data.intent },
+      { label: 'Sees self staying', value: data.tenureExpectation },
+      { label: 'What makes them stay', value: data.stayReason, stacked: true }
+    ]);
+    if (data.workHistory || data.whyJoin || data.achievements) {
+      container.innerHTML += createInfoCard('📝 More', [
+        { label: 'Work history', value: data.workHistory, stacked: true },
+        { label: 'Why Join', value: data.whyJoin, stacked: true },
+        { label: 'Achievements', value: data.achievements, stacked: true }
+      ]);
+    }
+    showSection('portalSection');
+  }
+
+  function createInfoCard(title, items) {
+    var rows = items.filter(function(i) { return i.value; }).map(function(i) {
+      var cls = i.stacked ? 'info-item stacked' : 'info-item';
+      return '<div class="' + cls + '"><span class="info-label">' + i.label + '</span><span class="info-value">' + escapeHtml(i.value) + '</span></div>';
+    }).join('');
+    return '<div class="info-card"><h4>' + title + '</h4>' + (rows || '<p style="color:var(--text-secondary);font-size:13px;padding:4px">No data provided</p>') + '</div>';
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function formatDate(d) {
+    var date = new Date(d);
+    if (isNaN(date.getTime())) return d;
+    return date.getDate() + ' ' + date.toLocaleString('default', { month: 'short' }) + ' ' + date.getFullYear();
+  }
+
+  // ── Voice input (Web Speech API) ────────────────────────────────────────────
+  var VoiceInput = (function() {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var supported = !!SR;
+    var recognition = null;
+    var activeField = null;
+    var activeBtn = null;
+    var baseText = '';
+    var toast = null;
+
+    // Fields to SKIP (handled separately or not text). Everything else text-like gets a mic.
+    var SKIP_IDS = ['resumeInput', 'fWhatsApp'];
+
+    function showToast(msg) {
+      toast = toast || document.getElementById('voiceToast');
+      if (!toast) return;
+      document.getElementById('voiceToastText').textContent = msg;
+      toast.classList.add('show');
+    }
+    function hideToast() { if (toast) toast.classList.remove('show'); }
+
+    function stop() {
+      if (recognition) { try { recognition.stop(); } catch (e) {} }
+    }
+
+    function cleanup() {
+      if (activeBtn) activeBtn.classList.remove('listening');
+      activeBtn = null;
+      activeField = null;
+      hideToast();
+    }
+
+    function start(field, btn) {
+      // If something else is recording, stop it first.
+      if (activeField && activeField !== field) { stop(); }
+
+      activeField = field;
+      activeBtn = btn;
+      baseText = field.value ? (field.value.replace(/\s+$/, '') + ' ') : '';
+
+      recognition = new SR();
+      recognition.lang = (navigator.language || 'en-IN');
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onstart = function() {
+        btn.classList.add('listening');
+        btn.querySelector('i').className = 'fas fa-stop';
+        showToast('Listening… tap mic again to stop');
+      };
+
+      recognition.onresult = function(event) {
+        var finalChunk = '';
+        var interimChunk = '';
+        for (var i = event.resultIndex; i < event.results.length; i++) {
+          var transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) finalChunk += transcript;
+          else interimChunk += transcript;
+        }
+        if (finalChunk) {
+          baseText = (baseText + finalChunk).replace(/\s+/g, ' ');
+          baseText = baseText.charAt(0).toUpperCase() + baseText.slice(1);
+          if (!/[ ]$/.test(baseText)) baseText += ' ';
+        }
+        field.value = (baseText + interimChunk).trimStart();
+        // clear any validation error styling as the user dictates
+        field.classList.remove('field-error');
+        var lbl = field.closest('.form-group') && field.closest('.form-group').querySelector('label');
+        if (lbl) lbl.classList.remove('field-error-label');
+      };
+
+      recognition.onerror = function(e) {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          showToast('Microphone blocked — allow mic access');
+          setTimeout(hideToast, 2500);
+        } else if (e.error === 'no-speech') {
+          showToast('Didn\'t catch that — try again');
+          setTimeout(hideToast, 1800);
+        }
+      };
+
+      recognition.onend = function() {
+        // finalize: trim trailing space
+        if (activeField) activeField.value = activeField.value.replace(/\s+$/, '');
+        if (activeBtn) { activeBtn.classList.remove('listening'); var ic = activeBtn.querySelector('i'); if (ic) ic.className = 'fas fa-microphone'; }
+        cleanup();
+      };
+
+      try { recognition.start(); }
+      catch (err) { showToast('Could not start microphone'); setTimeout(hideToast, 2000); cleanup(); }
+    }
+
+    function attachTo(field) {
+      if (field.dataset.voiceReady) return;
+      field.dataset.voiceReady = '1';
+      // wrap field so the button can be absolutely positioned
+      var wrap = document.createElement('div');
+      wrap.className = 'voice-wrap';
+      field.parentNode.insertBefore(wrap, field);
+      wrap.appendChild(field);
+
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'voice-btn';
+      btn.setAttribute('aria-label', 'Dictate with voice');
+      btn.setAttribute('title', 'Tap to speak');
+      btn.innerHTML = '<i class="fas fa-microphone"></i>';
+      btn.addEventListener('click', function(e) {
+        e.preventDefault(); e.stopPropagation();
+        if (activeField === field) { stop(); }
+        else { start(field, btn); }
+      });
+      wrap.appendChild(btn);
+    }
+
+    function init() {
+      if (!supported) return; // gracefully hide feature on unsupported browsers
+      var form = document.getElementById('applicationForm');
+      if (!form) return;
+      var fields = form.querySelectorAll('input[type="text"], input[type="tel"], input[type="email"], input[type="url"], textarea');
+      fields.forEach(function(f) {
+        if (SKIP_IDS.indexOf(f.id) !== -1) return;
+        attachTo(f);
+      });
+    }
+
+    return { init: init, supported: supported };
+  })();
+
+  window.addEventListener('DOMContentLoaded', function() {
+    updateStepIndicators(1);
+    VoiceInput.init();
+  });
+</script>
+</body>
+</html>

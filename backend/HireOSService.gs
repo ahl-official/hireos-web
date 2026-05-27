@@ -1048,6 +1048,129 @@ function legacyDoPost_(e, action, data) {
       return createResponse(setupHireOSLocalSheets());
     }
 
+    if (action === 'generateCandidateTest') {
+      const role = data.role || 'General Position';
+      const name = data.name || 'Candidate';
+      const resumeText = data.resumeText || '';
+
+      // 1. Fetch ICP
+      let selectedIcp = null;
+      try {
+        const icps = getAllICPs_();
+        selectedIcp = icps.find(i => i.roleName && i.roleName.toLowerCase() === role.toLowerCase()) 
+                   || icps.find(i => i.roleName && i.roleName.toLowerCase().includes(role.toLowerCase())) 
+                   || null;
+      } catch(e) {}
+
+      // 2. Generate Prompt & Call OpenRouter
+      const messages = [
+        {
+          role: 'system',
+          content: 'You are an expert technical interviewer. Generate EXACTLY 8 highly customized interview questions for this candidate. Output MUST be a valid JSON object with keys: "questions" (array of 8 strings), "correct_answers" (array of 8 strings with expected evaluation rubrics), "topics" (array of 8 strings), "difficulty" (array of 8 strings: easy/medium/hard).'
+        },
+        {
+          role: 'user',
+          content: `Candidate Name: ${name}\nApplied Role: ${role}\nResume:\n${resumeText}\n\nIdeal Candidate Profile context:\n${selectedIcp ? JSON.stringify(selectedIcp) : 'Standard Technical Evaluation'}\n\nDo NOT ask generic HR questions like strengths/weaknesses. Generate exactly 8 questions structured as follows:\n- 4 Deep Technical questions specific to their resume and role.\n- 2 Problem-Solving / Technical Approach scenarios.\n- 1 Behavioral question (e.g., adaptability, handling disagreements).\n- 1 Ability to Learn / Growth Mindset question.`
+        }
+      ];
+
+      let aiData;
+      try {
+        aiData = callOpenRouterJson(messages);
+      } catch (e) {
+        aiData = { 
+          questions: [
+            "Could you walk us through your most complex technical project?", 
+            "How do you ensure quality in your work?", 
+            "What is your approach to learning new technologies?", 
+            "Describe a time you solved a critical issue.", 
+            "Why are you a strong fit technically?",
+            "Can you explain a time you had to adapt to a sudden change?",
+            "How do you handle technical disagreements with your team?",
+            "What is a recent technology or trend that excites you?"
+          ],
+          correct_answers: [
+            "Detailed technical walkthrough", "Quality assurance strategy", 
+            "Continuous learning mindset", "Problem solving example", 
+            "Technical fit", "Adaptability and resilience", 
+            "Conflict resolution and teamwork", "Industry awareness"
+          ],
+          topics: [
+            "Experience", "Quality", "Learning", "Problem Solving", 
+            "Fit", "Adaptability", "Teamwork", "Trends"
+          ],
+          difficulty: ["medium", "medium", "medium", "hard", "medium", "medium", "hard", "medium"]
+        };
+      }
+      
+      // Extract Custom Questions from ICP Content
+      let extractedQuestions = [];
+      if (selectedIcp && selectedIcp.icpContent) {
+        // Look for "# 13" followed by anything, capturing everything until the end
+        const match = selectedIcp.icpContent.match(/#\s*13[\s\S]*?(?=\n#\s*\d|\n*$)/i);
+        if (match && match[0]) {
+          const lines = match[0].split('\n');
+          for (const line of lines) {
+            // Match lines like "1. what is RAG"
+            const qMatch = line.match(/^\s*\d+\.\s*(.+)/);
+            if (qMatch) {
+              extractedQuestions.push(qMatch[1].trim());
+            }
+          }
+        }
+      }
+
+      // Append extracted questions to AI data
+      if (extractedQuestions.length > 0 && Array.isArray(aiData.questions)) {
+        extractedQuestions.forEach(q => {
+          aiData.questions.push(q);
+          aiData.correct_answers.push("Evaluate based on exact technical accuracy as per the ICP requirements.");
+          aiData.topics.push("ICP Custom Technical");
+          aiData.difficulty.push("hard");
+        });
+      }
+
+      // 3. Save to Candidates sheet
+      const id = Utilities.getUuid();
+      const timestamp = new Date().toISOString();
+      const ss = getSpreadsheet();
+      const sheet = getOrCreateSheet(ss);
+      
+      const combinedQuestions = HR_QUESTIONS.map(q => q.question).concat(aiData.questions || []);
+      const combinedAnswers = HR_QUESTIONS.map(q => q.correctAnswer).concat(aiData.correct_answers || []);
+      const combinedTopics = HR_QUESTIONS.map(q => q.topic).concat(aiData.topics || []);
+      const combinedDifficulty = HR_QUESTIONS.map(q => q.difficulty).concat(aiData.difficulty || []);
+      const combinedTypes = HR_QUESTIONS.map(q => q.questionType).concat((aiData.questions || []).map(()=>'technical'));
+
+      appendRowByHeaders_(sheet, {
+        ID: id,
+        Name: name,
+        Email: '',
+        WhatsApp: '',
+        Questions: JSON.stringify(combinedQuestions),
+        'Correct Answers': JSON.stringify(combinedAnswers),
+        Topics: JSON.stringify(combinedTopics),
+        Difficulty: JSON.stringify(combinedDifficulty),
+        'Question Types': JSON.stringify(combinedTypes),
+        'Candidate Answers': '',
+        'Per Question Scores': '',
+        Score: '',
+        'Tab Switches': 0,
+        Status: 'Pending',
+        Timestamp: timestamp,
+        Position: role,
+        'Time Limit': 30,
+        'Selected ICP ID': selectedIcp ? selectedIcp.icpId : '',
+        'Selected ICP Role': selectedIcp ? selectedIcp.roleName : '',
+        'ICP Snapshot': selectedIcp ? JSON.stringify(selectedIcp) : '',
+        'Resume Text': resumeText.substring(0, 45000), // Protect cell limit
+        'Assessment Type': 'resume_icp',
+        'HR Form Data': data.hrData ? JSON.stringify(data.hrData) : '',
+      });
+
+      return createSuccessResponse_({ id: id });
+    }
+
     // ==========================================
     // AI ACTIONS
     // ==========================================
@@ -1190,9 +1313,11 @@ function legacyDoPost_(e, action, data) {
       const candidateSheet = getOrCreateSheet(getSpreadsheet());
       const cRowIdx = findRowIndexByHeaderValue_(candidateSheet, 'ID', candidateId);
       let icpSnapshot = null;
+      let hrData = null;
       if (cRowIdx !== -1) {
         const cRow = getRowObjectByHeaders_(candidateSheet, cRowIdx);
         icpSnapshot = parseStoredValue(cRow['ICP Snapshot'], null);
+        hrData = parseStoredValue(cRow['HR Form Data'], null);
       }
 
       const questionsData = data.questions.map((q, i) => ({
@@ -1204,7 +1329,7 @@ function legacyDoPost_(e, action, data) {
         question_type: data.questionTypes?.[i] || 'technical',
       }));
 
-      const messages = buildDetailedReportPrompt_(questionsData, icpSnapshot);
+      const messages = buildDetailedReportPrompt_(questionsData, icpSnapshot, hrData);
       const aiResult = callOpenRouter(messages);
       return createResponse({ status: 'success', data: aiResult });
     }
@@ -1844,10 +1969,9 @@ function getActiveICPs_() {
     .map((row) => ({
       icpId: row.icpId,
       roleName: row.roleName,
-      level: row.level,
-      department: row.department,
-      version: row.version,
       status: row.status,
+      version: row.version,
+      icpContent: row.icpContent,
     }));
 }
 
@@ -1889,18 +2013,10 @@ function saveICP_(data) {
   const payload = {
     icpId: icpId,
     roleName: data.roleName || 'New Role',
-    level: data.level || 'Not Specified',
-    department: data.department || 'HR/Admin',
     status: data.status || 'active',
     version: data.version || '1.0',
     icpContent: data.icpContent || '',
-    mandatorySkills: data.mandatorySkills || '',
-    goodToHaveSkills: data.goodToHaveSkills || '',
-    topTraits: data.topTraits || '',
-    redFlags: data.redFlags || '',
-    stabilityChecks: data.stabilityChecks || '',
-    scenarioBank: data.scenarioBank || '',
-    scoringRubric: data.scoringRubric || '',
+    createdAt: isNew ? now : data.createdAt || now,
     updatedAt: now,
   };
 

@@ -144,9 +144,15 @@ RULES:
 /**
  * Builds prompt for the final detailed hiring report.
  */
-function buildDetailedReportPrompt_(questionsData, icpSnapshot) {
+function buildDetailedReportPrompt_(questionsData, icpSnapshot, hrData) {
   let icpContext = '';
   let icpFitField = '';
+  let hrContext = '';
+
+  if (hrData) {
+    const hrText = sanitizePromptInput_(JSON.stringify(hrData, null, 2));
+    hrContext = `\n\nCANDIDATE'S SELF-REPORTED HR DATA (From Application Form):\n${hrText}\nIMPORTANT: Cross-reference the candidate's interview answers with the claims they made in this form. If their technical answers don't match the "expert skills" they claimed, or their salary expectation is too high for their demonstrated knowledge, flag it immediately.`;
+  }
 
   if (icpSnapshot) {
     const icpText = sanitizePromptInput_(icpSnapshot.icpContent);
@@ -158,7 +164,7 @@ function buildDetailedReportPrompt_(questionsData, icpSnapshot) {
   return [
     {
       role: 'system',
-      content: `You are an expert HR evaluator and hiring consultant. Analyze candidate responses and create a concise hiring note based only on evidence from the candidate's answers, scores, and feedback.${icpContext}
+      content: `You are an expert HR evaluator and hiring consultant. Analyze candidate responses and create a concise hiring note based only on evidence from the candidate's answers, scores, and feedback.${icpContext}${hrContext}
 
 Rules:
 1. Write like an internal HR evaluation report.

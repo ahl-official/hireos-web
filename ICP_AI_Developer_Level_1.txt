@@ -1,0 +1,276 @@
+# IDEAL CANDIDATE PROFILE (ICP) – LEVEL 1
+# ROLE: AI DEVELOPER
+
+## 1. BASIC ROLE DETAILS
+
+- Role Name: AI Developer / AI Automation Developer
+- Department: AI, Technology & Automation
+- Reporting To: AI Manager / Founder / Tech Head
+- Experience Required: 1–3 years of practical experience in AI tools, automation, APIs, or internal software development
+- Salary Range: ₹25,000 – ₹45,000 per month, depending on skill, portfolio, and problem-solving ability
+- Location: Mumbai, Khar West / Office-based
+- Work Timing: 11:00 AM – 8:00 PM
+
+---
+
+# 2. MAIN PURPOSE OF THIS ROLE
+
+To build, improve, and maintain AI-powered tools, automations, internal systems, and workflows that help the company save time, improve team productivity, reduce manual work, and make business processes faster and more accurate.
+
+---
+
+# 3. WHAT KIND OF PERSON ARE WE LOOKING FOR?
+
+The ideal candidate should be:
+
+- Stable and looking for long-term work
+- Open to learning new AI tools, APIs, and automation systems
+- Responsible and accountable for delivery
+- Hungry to grow in AI, automation, and business technology
+- Disciplined and punctual with timelines
+- Positive in attitude and solution-oriented
+- Comfortable with feedback and repeated improvements
+- Able to work in a fast-paced business environment
+- Emotionally mature when systems break or urgent fixes are needed
+- Respectful with team members from non-technical departments
+- Able to explain technical things in simple language
+- Curious about improving existing processes
+- Comfortable working with trial, error, debugging, and testing
+- Focused on practical execution, not only theory
+
+---
+
+# 4. TOP 3 MOST IMPORTANT TRAITS FOR THIS ROLE
+
+## Trait 1: Problem-Solving Mindset
+Why is it important?
+
+AI and automation work is not only about writing code. The person must understand the real business problem, identify where time is being wasted, and create a practical solution. Many times, the requirement will not be perfectly clear, so the candidate should be able to ask the right questions, test different approaches, and find a workable solution.
+
+## Trait 2: Fast Learning Ability
+Why is it important?
+
+AI tools, APIs, automation platforms, and development methods keep changing very quickly. The candidate should not wait for spoon-feeding. They should be able to learn from documentation, tutorials, previous code, and testing. A fast learner will help the company adopt new tools before competitors.
+
+## Trait 3: Ownership and Reliability
+Why is it important?
+
+Internal systems like CRM, lead automation, Google Sheets, WhatsApp automation, dashboards, and AI tools directly affect daily operations. If something breaks, the business can slow down. The candidate must take ownership, test properly, give updates, and not leave work half-done.
+
+---
+
+# 5. STABILITY CHECK (VERY IMPORTANT)
+
+We prefer candidates who:
+
+- Want long-term growth in AI, automation, and technology
+- Can stay minimum 2+ years
+- Have stable job history or strong project consistency
+- Stay close to workplace or can travel reliably
+- Are looking for career growth, not only quick salary jumps
+- Have genuine interest in building business systems
+- Are willing to work on internal company projects, not only trendy AI experiments
+- Can handle both new development and maintenance work
+
+### HR Should Check:
+
+- Frequent job changes
+- Large unexplained gaps
+- Pattern of leaving quickly after learning basics
+- Too many career switches without clear reason
+- Complaining about previous companies or managers
+- Only interested in remote work if role requires office presence
+- Overclaiming skills without real projects
+- Copy-paste developer mindset without understanding logic
+- Lack of patience for debugging and testing
+- Whether the candidate has actually completed projects end-to-end
+
+---
+
+# 6. RED FLAGS
+
+### Major Red Flags:
+
+- Poor learning attitude
+- Defensive behavior when code or logic is questioned
+- Victim mindset
+- Poor communication
+- Low energy during technical discussion
+- Lack of responsibility
+- Poor punctuality
+- Arrogance without real project achievement
+- Negative attitude toward previous employer
+- No long-term commitment mindset
+- Unwillingness to learn new tools
+- Poor grooming or hygiene
+- Looking only for salary, not growth
+- Says “I know AI” but cannot explain practical use cases
+- Cannot show any real project, GitHub, demo, or work sample
+- Blames tools, APIs, or team members without taking ownership
+- Avoids documentation
+- Does not test before saying work is complete
+- Gives unclear updates like “almost done” without proof
+- Not comfortable with business users or non-technical teams
+
+### Things To Investigate Further:
+
+- Freelancing background
+- Multiple side hustles
+- Too many short-term jobs
+- Unclear career direction
+- Candidate who only uses ChatGPT but does not understand code logic
+- Candidate who has only course certificates but no hands-on projects
+- Candidate who wants only research work and avoids execution
+- Candidate who wants high salary without proven output
+
+---
+
+# 7. SKILLS REQUIRED
+
+## Mandatory Skills:
+(List non-negotiable skills)
+
+- Basic to strong understanding of AI tools and LLMs
+- Prompt engineering for business use cases
+- Python or JavaScript programming knowledge
+- API integration experience
+- Google Apps Script knowledge or willingness to learn quickly
+- Basic database understanding such as Google Sheets, Firebase, Firestore, MySQL, or similar
+- Ability to build internal dashboards, scripts, or automation workflows
+- Debugging and error-reading ability
+- GitHub or version-control basics
+- Understanding of webhooks, JSON, and API responses
+- Ability to read existing code and improve it
+- Documentation of work done, logic used, and handover notes
+- Basic frontend understanding: HTML, CSS, JavaScript
+- Clear communication with non-technical team members
+
+## Good To Have Skills:
+(List bonus skills)
+
+- Firebase / Firestore / Cloud Functions
+- Node.js
+- Apps Script web apps
+- CRM automation experience
+- WhatsApp API, Gallabox, Meta API, or similar tools
+- n8n, Make, Zapier, or similar automation tools
+- OpenAI API or other AI API integration
+- AI chatbot development
+- Voice-to-text / speech-to-text tools
+- Google Sheets automation
+- Dashboard creation
+- Basic UI/UX understanding
+- Experience with business process automation
+- Basic server, Docker, or deployment knowledge
+- Experience creating AI tools for HR, CRM, marketing, or operations
+
+---
+
+# 8. EXPERIENCE REQUIREMENT
+
+## Minimum Practical Experience Required:
+
+- Must have built at least 2–3 practical automation, AI, or software projects
+- Must have worked with APIs in real projects
+- Must be able to explain one project end-to-end, including problem, logic, errors, and final result
+- Must have basic debugging experience
+- Must have handled at least one workflow where data moved from one system to another
+- Should have experience with Google Sheets automation, CRM automation, chatbot, dashboard, or AI assistant project
+- Should be able to create small internal tools without needing full-time supervision
+- Should be able to test, document, and improve existing systems
+- Should understand how automation affects real business teams like CRM, HR, marketing, and operations
+
+Examples of acceptable practical work:
+
+- Built a lead management automation
+- Built a WhatsApp automation workflow
+- Built an AI chatbot or AI assistant
+- Built a Google Sheets-based automation
+- Built a dashboard for team tracking
+- Integrated forms with CRM or database
+- Used OpenAI API or similar AI tools in a real project
+- Created scripts to clean, sort, sync, or analyze business data
+- Improved a slow or manual process using automation
+
+---
+
+# 9. WHAT TYPE OF PEOPLE FIT THIS COMPANY WELL?
+
+- Fast learners
+- Team players
+- Growth-oriented people
+- People who can handle pressure
+- People comfortable with accountability
+- Self-motivated individuals
+- People with positive energy
+- People who like solving real business problems
+- People who can work with both technical and non-technical teams
+- People who give clear daily updates
+- People who test before submitting
+- People who accept feedback and improve quickly
+- People who are curious about AI, automation, and process improvement
+- People who can balance speed with accuracy
+- People who take ownership of results
+
+---
+
+# 10. WHAT TYPE OF PEOPLE USUALLY FAIL HERE?
+
+- People who avoid responsibility
+- People who need constant motivation
+- People who cannot handle feedback
+- Low-discipline individuals
+- People with weak consistency
+- People uncomfortable in fast-paced environments
+- People who create drama or negativity
+- People who only want to experiment but not complete work
+- People who do not document anything
+- People who do not test properly
+- People who cannot communicate delays early
+- People who only know theory and cannot execute
+- People who are not comfortable maintaining old systems
+- People who disappear when bugs come
+- People who think small internal tasks are below them
+
+---
+
+# 11. INTERVIEW OBSERVATION POINTS
+
+HR should observe:
+
+- Energy level
+- Communication clarity
+- Learning mindset
+- Confidence level
+- Grooming and hygiene
+- Ownership mentality
+- Career stability
+- Respectfulness
+- Curiosity level
+- Professionalism
+- Whether candidate explains projects clearly
+- Whether candidate understands business problems
+- Whether candidate accepts corrections
+- Whether candidate asks practical questions
+- Whether candidate gives honest answers about skill level
+- Whether candidate can explain a technical topic in simple words
+- Whether candidate has patience for debugging
+- Whether candidate has long-term interest in AI and automation
+
+Suggested interview checks:
+
+- Ask candidate to explain one project from start to finish
+- Ask what problem the project solved
+- Ask what errors they faced and how they fixed them
+- Ask which tools and APIs they used
+- Ask how they tested the project
+- Ask if they documented the work
+- Ask what they would automate in a salon/clinic business
+- Ask how they would improve a slow CRM system
+- Ask how they would handle urgent bugs during working hours
+
+---
+
+# 12. FINAL IDEAL CANDIDATE SUMMARY
+
+We are looking for a stable, responsible, and growth-oriented AI Developer who can build practical business tools, automations, and AI solutions. The ideal candidate should not only know coding or AI tools but should also understand real business problems, communicate clearly, test properly, and take ownership of results. This person should be eager to learn, comfortable with feedback, disciplined with timelines, and ready to grow long-term with the company by improving CRM, HR, marketing, operations, and internal technology systems.
