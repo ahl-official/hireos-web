@@ -8,7 +8,8 @@ export function useInterviewSession(
   questions = [],
   sttInterviewId = null,
   candidateId = '',
-  candidateName = ''
+  candidateName = '',
+  questionTypes = []
 ) {
   console.log('[useInterviewSession] Hook initialized v2.1');
   const [status, setStatus] = useState(INTERVIEW_STATUS.IDLE);
@@ -150,7 +151,7 @@ export function useInterviewSession(
 
       try {
         const base64 = await blobToBase64(finalBlob);
-        const qType = isPractice ? 'practice' : currentQuestionIndex < 8 ? 'hr' : 'technical';
+        const qType = isPractice ? 'practice' : (questionTypes[currentQuestionIndex] || 'technical');
 
         const result = await processAnswerAudio({
           interviewId: sttInterviewId,
@@ -253,7 +254,7 @@ export function useInterviewSession(
       try {
         console.log('[useInterviewSession] Calling saveConfirmedAnswer API...');
         const saveStartTime = Date.now();
-        const qType = isPractice ? 'practice' : currentQuestionIndex < 8 ? 'hr' : 'technical';
+        const qType = isPractice ? 'practice' : (questionTypes[currentQuestionIndex] || 'technical');
 
         const result = await saveConfirmedAnswer({
           interviewId: sttInterviewId,

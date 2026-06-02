@@ -45,6 +45,7 @@ export default function TestPage() {
   const [candidateEmail, setCandidateEmail] = useState('');
   const [candidatePosition, setCandidatePosition] = useState('');
   const [questions, setQuestions] = useState([]);
+  const [questionTypes, setQuestionTypes] = useState([]);
   const [appStatus, setAppStatus] = useState('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [timeLeft, setTimeLeft] = useState(null);
@@ -82,7 +83,7 @@ export default function TestPage() {
     retryAnswer,
     confirmAnswerAction,
     jumpToQuestion,
-  } = useInterviewSession(questions, sttInterviewId, candidateId, candidateName);
+  } = useInterviewSession(questions, sttInterviewId, candidateId, candidateName, questionTypes);
 
   // ── Initialization ──
   const fetchTestData = useCallback(async () => {
@@ -120,6 +121,7 @@ export default function TestPage() {
       };
 
       setQuestions(safeParse(data.questions));
+      setQuestionTypes(safeParse(data.questionTypes));
       setTimeLeft(Number(data.timeLimit || 15) * 60);
       setAppStatus('ready');
       setStatus(INTERVIEW_STATUS.WELCOME);

@@ -274,3 +274,10 @@ Suggested interview checks:
 # 12. FINAL IDEAL CANDIDATE SUMMARY
 
 We are looking for a stable, responsible, and growth-oriented AI Developer who can build practical business tools, automations, and AI solutions. The ideal candidate should not only know coding or AI tools but should also understand real business problems, communicate clearly, test properly, and take ownership of results. This person should be eager to learn, comfortable with feedback, disciplined with timelines, and ready to grow long-term with the company by improving CRM, HR, marketing, operations, and internal technology systems.
+
+
+# 13. Add this costume Question
+
+1. what is RAG 
+
+2. what is n8n

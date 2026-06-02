@@ -14,32 +14,37 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMsg, setLoadingMsg] = useState('Loading candidate data...');
   const [error, setError] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerateReport = async () => {
+    if (!candidate) return;
+    setIsGenerating(true);
+    try {
+      const result = await generateDetailedSummary(
+        candidate.id,
+        parseJSON(candidate.questions),
+        parseJSON(candidate.candidateAnswers),
+        parseJSON(candidate.perQuestionScores),
+        parseJSON(candidate.questionTypes),
+        parseJSON(candidate.topics)
+      );
+      
+      const summaryStr = typeof result === 'string' ? result : JSON.stringify(result);
+      setCandidate(prev => ({ ...prev, detailedSummary: summaryStr }));
+      await saveCandidateSummary(candidate.id, summaryStr);
+    } catch (err) {
+      console.error("Failed to generate AI summary manually:", err);
+      alert("Failed to generate report. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   useEffect(() => {
     async function loadCandidate() {
       try {
         const data = await getCandidateDetails(id);
         if (data) {
-          // If the AI hasn't generated the detailed summary yet, generate it now!
-          if (!data.detailedSummary && data.candidateAnswers && data.candidateAnswers.length > 0) {
-            setLoadingMsg('Analyzing AI results and generating detailed report (this takes about 15 seconds)...');
-            try {
-              const result = await generateDetailedSummary(
-                data.id,
-                parseJSON(data.questions),
-                parseJSON(data.candidateAnswers),
-                parseJSON(data.perQuestionScores),
-                parseJSON(data.questionTypes),
-                parseJSON(data.topics)
-              );
-              
-              const summaryStr = typeof result === 'string' ? result : JSON.stringify(result);
-              data.detailedSummary = summaryStr;
-              await saveCandidateSummary(data.id, summaryStr);
-            } catch (err) {
-              console.error("Failed to generate AI summary on the fly:", err);
-            }
-          }
           setCandidate(data);
         } else {
           setError('Candidate not found');
@@ -136,9 +141,32 @@ export default function ReportPage() {
             <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
               <Award className="w-5 h-5 text-indigo-500" /> Evaluation Summary
             </h2>
-            <div className="text-slate-700 leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-100">
-              {summaryObj.summary}
-            </div>
+            {candidate.detailedSummary ? (
+              <div className="text-slate-700 leading-relaxed bg-slate-50 p-5 rounded-xl border border-slate-100">
+                {summaryObj.summary}
+              </div>
+            ) : (
+              <div className="bg-amber-50 border border-amber-100 p-6 rounded-xl flex items-center justify-between">
+                <div>
+                  <h3 className="text-amber-800 font-bold mb-1">AI Report Not Generated</h3>
+                  <p className="text-amber-700 text-sm">The detailed evaluation report hasn't been generated yet.</p>
+                </div>
+                <button
+                  onClick={handleGenerateReport}
+                  disabled={isGenerating}
+                  className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isGenerating ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Generating...
+                    </>
+                  ) : (
+                    'Generate AI Report'
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:grid-cols-2">
