@@ -399,7 +399,62 @@
           <div class="form-group">
             <label>Position Applied For <span class="required-star">*</span></label>
             <select id="fPosition" class="form-control" required onchange="toggleOther('fPosition','positionOtherWrap'); updateSalesTestVisibility();">
-              <option value="">— Loading roles... —</option>
+              <option value="">— Select Role —</option>
+              <optgroup label="🧴 Hair & Beauty">
+                <option>Hair Consultant</option>
+                <option>Hair Stylist / Technician</option>
+                <option>Hair Replacement Specialist</option>
+                <option>Trichologist</option>
+                <option>Beauty Therapist</option>
+                <option>Scalp Treatment Specialist</option>
+              </optgroup>
+              <optgroup label="💼 Sales & Business">
+                <option>Sales Executive</option>
+                <option>Senior Sales Executive</option>
+                <option>Business Development Executive</option>
+                <option>Business Development Manager</option>
+                <option>Key Account Manager</option>
+                <option>Regional Sales Manager</option>
+                <option>Zonal Sales Manager</option>
+                <option>National Sales Manager</option>
+              </optgroup>
+              <optgroup label="🏪 Store & Operations">
+                <option>Store Manager</option>
+                <option>Assistant Store Manager</option>
+                <option>Operations Executive</option>
+                <option>Operations Manager</option>
+                <option>Franchise Manager</option>
+              </optgroup>
+              <optgroup label="📞 Customer Support">
+                <option>Customer Support Executive</option>
+                <option>Customer Relationship Manager</option>
+                <option>CRM Executive</option>
+                <option>After Sales Support Executive</option>
+              </optgroup>
+              <optgroup label="📣 Marketing">
+                <option>Marketing Executive</option>
+                <option>Digital Marketing Executive</option>
+                <option>Social Media Manager</option>
+                <option>Content Creator / Influencer</option>
+                <option>Brand Manager</option>
+                <option>PR Executive</option>
+              </optgroup>
+              <optgroup label="🖥️ Tech & Admin">
+                <option>HR Executive</option>
+                <option>HR Manager</option>
+                <option>Accounts Executive</option>
+                <option>Admin Executive</option>
+                <option>IT Executive</option>
+                <option>Data Analyst</option>
+                <option>AI Developer</option>
+              </optgroup>
+              <optgroup label="🎓 Fresher / Intern">
+                <option>Management Trainee</option>
+                <option>Sales Intern</option>
+                <option>Marketing Intern</option>
+                <option>Operations Intern</option>
+              </optgroup>
+              <option value="Other">Other (specify below)</option>
             </select>
             <div class="other-input-wrap" id="positionOtherWrap">
               <input type="text" id="fPositionOther" class="form-control" placeholder="Please specify the role...">
@@ -848,25 +903,34 @@
       if (res.ok) {
         var data = await res.json();
         if (data.roles && data.roles.length > 0) {
-          sel.innerHTML = '<option value="">— Select Role —</option>';
+          // Remove the old 'Other' option so we can append it at the end
+          var otherOption = sel.querySelector('option[value="Other"]');
+          if (otherOption) sel.removeChild(otherOption);
+
+          var optGroup = document.createElement('optgroup');
+          optGroup.label = '✨ AI Roles (ICP)';
           data.roles.forEach(function(r) {
-            var opt = document.createElement('option');
-            opt.value = r;
-            opt.textContent = r;
-            sel.appendChild(opt);
+            // Only add if not already in the hardcoded list
+            var existing = Array.from(sel.options).find(opt => opt.value === r);
+            if (!existing) {
+              var opt = document.createElement('option');
+              opt.value = r;
+              opt.textContent = r;
+              optGroup.appendChild(opt);
+            }
           });
-          var other = document.createElement('option');
-          other.value = 'Other';
-          other.textContent = 'Other (specify below)';
-          sel.appendChild(other);
-          return;
+
+          if (optGroup.children.length > 0) {
+            sel.appendChild(optGroup);
+          }
+
+          // Append 'Other' back at the very end
+          if (otherOption) sel.appendChild(otherOption);
         }
       }
     } catch (e) {
-      console.error('Failed to load roles:', e);
+      console.error('Failed to load dynamic roles:', e);
     }
-    // Fallback if API fails
-    sel.innerHTML = '<option value="">— Select Role —</option><option value="Other">Other (specify below)</option>';
   }
 
   function updateSalesTestVisibility() {

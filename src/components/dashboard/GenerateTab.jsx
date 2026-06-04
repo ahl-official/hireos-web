@@ -79,9 +79,11 @@ const InterviewPlanPreview = ({
   activeICPs = [],
   selectedIcpId = '',
 }) => {
-  const customCount = formData.customQuestions.trim()
-    ? formData.customQuestions.split('\n').filter((q) => q.trim()).length
-    : 0;
+  const customCount = Array.isArray(formData.customQuestions)
+    ? formData.customQuestions.filter((q) => q.trim() !== '').length
+    : (formData.customQuestions && typeof formData.customQuestions === 'string'
+        ? formData.customQuestions.split('\n').filter((q) => q.trim()).length
+        : 0);
 
   const isIcp = assessmentType === 'icp';
   const selectedIcp = (activeICPs || []).find((i) => i.icpId === selectedIcpId);
@@ -471,7 +473,7 @@ Good luck! 🚀`
                     position: '',
                     timeLimit: '15',
                     mustCheckSkills: '',
-                    customQuestions: '',
+                    customQuestions: [''],
                   });
                   setGeneratedCandidateName('');
                   setGeneratedCandidateContact('');
