@@ -921,6 +921,7 @@
               var opt = document.createElement('option');
               opt.value = r;
               opt.textContent = r;
+              opt.setAttribute('data-icpid', icp.icpId);
               optGroup.appendChild(opt);
             }
           });
@@ -1163,6 +1164,10 @@
         if (result.cvText) {
           document.getElementById('loadingText').textContent = 'Generating your custom AI Interview (this takes about 20 seconds)...';
           try {
+            var positionSelect = document.getElementById('fPosition');
+            var selectedOption = positionSelect.options[positionSelect.selectedIndex];
+            var icpId = selectedOption ? selectedOption.getAttribute('data-icpid') : null;
+
             var aiRes = await fetch('https://script.google.com/macros/s/AKfycbxHKQek4oF4YXgeuppoC_it59AeaemYJ-YYJ5iVX03tI5QruMhuWKjZBwJ8r2YjBXI/exec', {
               method: 'POST',
               body: JSON.stringify({
@@ -1170,7 +1175,8 @@
                 name: savedData.fullName,
                 role: savedData.positionApplied,
                 resumeText: result.cvText,
-                rowNumber: result.rowNumber
+                rowNumber: result.rowNumber,
+                selectedIcpId: icpId
               })
             });
             var aiData = await aiRes.json();

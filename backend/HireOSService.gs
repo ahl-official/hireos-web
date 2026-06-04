@@ -1057,9 +1057,14 @@ function legacyDoPost_(e, action, data) {
       let selectedIcp = null;
       try {
         const icps = getAllICPs_();
-        selectedIcp = icps.find(i => i.roleName && i.roleName.toLowerCase() === role.toLowerCase()) 
-                   || icps.find(i => i.roleName && i.roleName.toLowerCase().includes(role.toLowerCase())) 
-                   || null;
+        if (data.selectedIcpId) {
+          selectedIcp = icps.find(i => i.icpId === data.selectedIcpId) || null;
+        }
+        if (!selectedIcp) {
+          selectedIcp = icps.find(i => i.roleName && i.roleName.toLowerCase() === role.toLowerCase()) 
+                     || icps.find(i => i.roleName && i.roleName.toLowerCase().includes(role.toLowerCase())) 
+                     || null;
+        }
       } catch(e) {}
 
       // 2. Generate Prompt & Call OpenRouter
