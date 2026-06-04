@@ -1,6 +1,7 @@
 const { google } = require('googleapis');
 
-const SHEET_ID = process.env.GOOGLE_SHEET_ID || '1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI';
+// ICP_Master lives in the Dashboard Spreadsheet, not the Candidate Form Spreadsheet
+const DASHBOARD_SHEET_ID = process.env.HIREOS_DASHBOARD_SHEET_ID || '1LVl3-5f8vLGt7YRTbmquUR09UFJgb9J0lTn7XSGc7OM';
 
 function parsePrivateKey(raw) {
   if (!raw) throw new Error('GOOGLE_PRIVATE_KEY is not set');
@@ -45,7 +46,7 @@ export default async function handler(req, res) {
     const sheets = google.sheets({ version: 'v4', auth: authClient });
 
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
+      spreadsheetId: DASHBOARD_SHEET_ID,
       range: 'ICP_Master!A:E', // Getting A to E to ensure we get both roleName and status
     });
 

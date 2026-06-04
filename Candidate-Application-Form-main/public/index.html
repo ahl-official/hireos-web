@@ -910,8 +910,8 @@
           var optGroup = document.createElement('optgroup');
           optGroup.label = '✨ AI Roles (ICP)';
           data.roles.forEach(function(r) {
-            // Only add if not already in the hardcoded list
-            var existing = Array.from(sel.options).find(opt => opt.value === r);
+            // Only add if not already in the hardcoded list (case-insensitive)
+            var existing = Array.from(sel.options).find(opt => opt.value.toLowerCase() === r.toLowerCase());
             if (!existing) {
               var opt = document.createElement('option');
               opt.value = r;
