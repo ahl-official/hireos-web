@@ -1180,8 +1180,9 @@
               })
             });
             var aiData = await aiRes.json();
-            if (aiData.status === 'success' && aiData.interviewId) {
-              result.interviewId = aiData.interviewId;
+            var returnedId = aiData.id || aiData.interviewId;
+            if (aiData.status === 'success' && returnedId) {
+              result.interviewId = returnedId;
             }
           } catch(e) {
             console.error('Frontend AI Generation Error:', e);
