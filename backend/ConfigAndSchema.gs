@@ -36,6 +36,7 @@ const HIREOS_SHEET_SCHEMA = {
       'Audio Folder Link',
       'Final Transcript Link',
       'HR Form Data',
+      'Final Status',
     ],
   },
   ICP_MASTER: {

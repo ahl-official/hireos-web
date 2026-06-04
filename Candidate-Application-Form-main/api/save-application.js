@@ -1,5 +1,6 @@
 const { google } = require('googleapis');
 const { Readable } = require('stream');
+const pdfParse = require('pdf-parse');
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID || '1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI';
 const SHEET_NAME = 'Candidate Applications';
@@ -202,52 +203,24 @@ module.exports = async function handler(req, res) {
 
     // The row will be appended after the interview generation is complete
 
-    // 3. Trigger HireOS Backend for AI Test Generation (ONLY if 100% complete)
-    const requiredFields = ['fullName', 'city', 'positionApplied', 'experience', 'expectedSalary', 'topStrengths', 'strengthProof', 'pressureHandling', 'tenureExpectation', 'whyJoin', 'skills'];
-    const filledCount = requiredFields.filter(f => data[f] && data[f].toString().trim()).length;
-    const hasResume = (data.resume && data.resume.data && data.resume.type === 'application/pdf') ? 1 : 0;
-    const isComplete = (filledCount === requiredFields.length) && (hasResume === 1);
-
-    let extractedText = '';
-    let interviewId = null;
-    if (isComplete) {
+    // 3. (REMOVED) Trigger HireOS Backend for AI Test Generation
+    // We no longer trigger 'generateCandidateTest' synchronously because it causes a Vercel 504 Timeout (takes 15+ seconds).
+    // Instead, this API only saves the HR Data lightning fast. HR will use the "Review & Generate" workflow from the dashboard.
+    // 3. Extract CV Text from PDF
+    let cvText = '';
+    if (data.resume && data.resume.data && (data.resume.type === 'application/pdf' || resumeFileName.toLowerCase().endsWith('.pdf'))) {
       try {
-        const pdf = require('pdf-parse');
-        let base64Data = data.resume.data;
-        if (base64Data.includes(',')) {
-          base64Data = base64Data.split(',')[1];
-        }
+        const base64Data = data.resume.data.includes(',') ? data.resume.data.split(',')[1] : data.resume.data;
         const buffer = Buffer.from(base64Data, 'base64');
-        const pdfData = await pdf(buffer);
-        extractedText = pdfData.text;
-
-        // Make POST request to HireOS Web App
-        // using the URL defined in .env (VITE_GOOGLE_APP_SCRIPT_URL)
-        const appsScriptUrl = process.env.VITE_GOOGLE_APP_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbxHKQek4oF4YXgeuppoC_it59AeaemYJ-YYJ5iVX03tI5QruMhuWKjZBwJ8r2YjBXI/exec';
-
-        const cleanHrData = { ...data };
-        delete cleanHrData.resume;
-
-        const hireosRes = await fetch(appsScriptUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'generateCandidateTest',
-            role: data.positionApplied,
-            name: data.fullName,
-            resumeText: extractedText,
-            hrData: cleanHrData
-          })
-        });
-
-        const hireosJson = await hireosRes.json();
-        if (hireosJson.status === 'success') {
-          interviewId = hireosJson.id;
-        }
-      } catch (err) {
-        console.error('Failed to parse PDF or trigger HireOS:', err);
+        const parsed = await pdfParse(buffer);
+        cvText = parsed.text;
+      } catch (e) {
+        console.error('PDF Parse error:', e.message);
       }
     }
+
+    const interviewId = ''; // Left empty until generated
+
 
     // 4. Append to sheet — order MUST match HEADERS above.
     const row = [
@@ -275,12 +248,18 @@ module.exports = async function handler(req, res) {
       interviewId ? `https://hireos-web.vercel.app/report/${interviewId}` : '' // Report Link (Standalone Page)
     ];
 
-    await sheets.spreadsheets.values.append({
+    const appendRes = await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
       range: SHEET_NAME,
       valueInputOption: 'USER_ENTERED',
       requestBody: { values: [row] }
     });
+
+    let rowNumber = null;
+    if (appendRes.data && appendRes.data.updates && appendRes.data.updates.updatedRange) {
+      const match = appendRes.data.updates.updatedRange.match(/\d+$/);
+      if (match) rowNumber = parseInt(match[0], 10);
+    }
 
     // 4. WhatsApp (Disabled for now per user request)
     // if (data.resume && data.resume.data) {
@@ -288,7 +267,15 @@ module.exports = async function handler(req, res) {
     //     .catch(err => console.error('Waha async error:', err.message));
     // }
 
-    return res.status(200).json({ success: true, message: 'Application submitted successfully', applicantName: data.fullName, resumeLink: resumeLink || null, interviewId: interviewId });
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Application submitted successfully', 
+      applicantName: data.fullName, 
+      resumeLink: resumeLink || null, 
+      interviewId: interviewId,
+      cvText: cvText,
+      rowNumber: rowNumber
+    });
 
   } catch (error) {
     console.error('Save error:', error);

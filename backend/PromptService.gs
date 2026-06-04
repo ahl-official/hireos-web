@@ -169,17 +169,20 @@ function buildDetailedReportPrompt_(questionsData, icpSnapshot, hrData) {
 Rules:
 1. Write like an internal HR evaluation report.
 2. Keep the summary concise, practical, and decision-oriented.
-3. Mention strengths, gaps, communication quality, role fit, and training needs.
-4. Do not invent facts that are not reasonably supported by the answers.
-5. If evidence is limited, say so briefly instead of over-claiming.
-6. Green and red flags must be specific, short, and usable by recruiters.
-7. Focus on what matters for hiring, not a long explanation.`,
+3. NON-NEGOTIABLES: Scan the ICP for 'Mandatory Skills' or 'Non-Negotiables'. If the candidate clearly fails a Mandatory Skill, you MUST heavily penalize the score and Reject.
+4. STABILITY & GAPS: Check HR answers for unexplained job gaps or lack of long-term commitment. Flag as a Red Flag if found.
+5. LEARNING ATTITUDE: Evaluate how they answer scenario/pressure questions. Defensiveness is a Red Flag; adaptability is a Green Flag.
+6. SKILL PROOF: If they claim expert knowledge in a tool but give weak technical answers, flag "Skill Proof Required".
+7. LOCATION FIT: Cross-reference their location answer with ICP requirements. If they match the required location exactly, give a strong positive recommendation. If they are far away (e.g., a long 2+ hour commute), flag it as a risk or penalize the recommendation.
+8. Focus on what matters for hiring, not a long explanation.`,
     },
     {
       role: 'user',
       content: `Create a concise hiring evaluation based on these interview responses:\n\n${JSON.stringify(questionsData, null, 2)}\n\nReturn a JSON object with this exact shape:
 {
   "summary": "120-170 word hiring summary in the style of an HR evaluator. Mention strongest positives, key concerns, communication/ownership signals, and best-fit role level.",
+  "decision": "Shortlist" | "Maybe" | "Reject",
+  "decisionReason": "1 sentence explaining why this decision was made",
   "greenFlags": [
     { "title": "short label", "detail": "1-2 sentence explanation tied to the answers" }
   ],
@@ -192,6 +195,7 @@ Rules:
 Requirements:
 - Return 3 to 6 green flags and 2 to 5 red flags.
 - Keep titles short.
+- MUST return exactly one of "Shortlist", "Maybe", or "Reject" for the decision field.
 - If ICP fit is provided, include "icpFitAnalysis".
 - Make the summary feel similar to an HR interview review.`,
     },

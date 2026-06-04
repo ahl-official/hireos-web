@@ -286,7 +286,7 @@ function normalizeListInput(value) {
     }
 
     return trimmed
-      .split(/\r?\n|,/)
+      .split(/\r?\n/)
       .map((item) => item.trim())
       .filter(Boolean);
   }
@@ -1168,6 +1168,18 @@ function legacyDoPost_(e, action, data) {
         'HR Form Data': data.hrData ? JSON.stringify(data.hrData) : '',
       });
 
+      // Link back to Application Form if rowNumber is provided
+      if (data.rowNumber) {
+        try {
+          const appSheet = ss.getSheetByName('Candidate Applications');
+          if (appSheet) {
+            appSheet.getRange(data.rowNumber, 52).setValue(id);
+          }
+        } catch(e) {
+          console.error('Failed to link interview ID to HR sheet:', e);
+        }
+      }
+
       return createSuccessResponse_({ id: id });
     }
 
@@ -1643,6 +1655,7 @@ function legacyDoPost_(e, action, data) {
           timeLimit: r[headerMap['Time Limit']] || 15,
           submittedAt: submittedAtStr,
           assessmentType: r[headerMap['Assessment Type']] || 'normal',
+          finalStatus: r[headerMap['Final Status']] || '',
         });
       }
       return createSuccessResponse_({ data: candidates.reverse() });
@@ -1676,6 +1689,7 @@ function legacyDoPost_(e, action, data) {
             submittedAt: r['Submitted At'] || '',
             questionTypes: r['Question Types'] || '',
             detailedSummary: r['Detailed Summary'] || '',
+            finalStatus: r['Final Status'] || '',
           },
         });
       }
@@ -1717,10 +1731,29 @@ function legacyDoPost_(e, action, data) {
       const summaryData = data.summary; // JSON string or object
       const ss = getSpreadsheet();
       const sheet = getOrCreateSheet(ss);
-      const success = updateRowByHeaders_(sheet, 'ID', candidateId, {
-        'Detailed Summary':
-          typeof summaryData === 'string' ? summaryData : JSON.stringify(summaryData),
-      });
+      
+      let finalStatus = '';
+      let summaryStr = summaryData;
+      
+      if (typeof summaryData === 'string') {
+        try {
+          const parsed = JSON.parse(summaryData);
+          if (parsed.decision) finalStatus = parsed.decision;
+        } catch(e) {}
+      } else if (summaryData && typeof summaryData === 'object') {
+        summaryStr = JSON.stringify(summaryData);
+        if (summaryData.decision) finalStatus = summaryData.decision;
+      }
+      
+      const updateData = {
+        'Detailed Summary': summaryStr,
+      };
+      
+      if (finalStatus) {
+        updateData['Final Status'] = finalStatus;
+      }
+
+      const success = updateRowByHeaders_(sheet, 'ID', candidateId, updateData);
       if (success) return createSuccessResponse_({ data: { saved: true } });
       return createErrorResponse_('Candidate not found');
     }

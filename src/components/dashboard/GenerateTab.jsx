@@ -166,7 +166,7 @@ export default function GenerateTab() {
     position: '',
     timeLimit: '15',
     mustCheckSkills: '',
-    customQuestions: '',
+    customQuestions: [''],
   });
   const [assessmentType, setAssessmentType] = useState('normal'); // 'normal' or 'icp'
   const [activeICPs, setActiveICPs] = useState([]);
@@ -207,6 +207,23 @@ export default function GenerateTab() {
     }
   };
 
+  const handleCustomQuestionChange = (index, value) => {
+    const updated = [...formData.customQuestions];
+    updated[index] = value;
+    setFormData((p) => ({ ...p, customQuestions: updated }));
+  };
+
+  const addCustomQuestion = () => {
+    setFormData((p) => ({ ...p, customQuestions: [...p.customQuestions, ''] }));
+  };
+
+  const removeCustomQuestion = (index) => {
+    const updated = [...formData.customQuestions];
+    updated.splice(index, 1);
+    if (updated.length === 0) updated.push('');
+    setFormData((p) => ({ ...p, customQuestions: updated }));
+  };
+
   const handleFile = (e) => {
     const f = e.target.files[0];
     if (!f) return;
@@ -243,6 +260,10 @@ export default function GenerateTab() {
       setStatus('generating');
       const selectedIcp = activeICPs.find((i) => i.icpId === selectedIcpId);
 
+      const customQuestionsString = Array.isArray(formData.customQuestions)
+        ? formData.customQuestions.filter(q => q.trim() !== '').join('\n')
+        : formData.customQuestions;
+
       const generated = await generateQuestions(
         cvText,
         formData.position || selectedIcp?.roleName || '',
@@ -251,7 +272,7 @@ export default function GenerateTab() {
           assessmentType,
           selectedIcpId,
           mustCheckSkills: formData.mustCheckSkills,
-          customQuestions: formData.customQuestions,
+          customQuestions: customQuestionsString,
         }
       );
 
@@ -262,7 +283,7 @@ export default function GenerateTab() {
         position: formData.position || selectedIcp?.roleName || '',
         timeLimit: formData.timeLimit,
         mustCheckSkills: formData.mustCheckSkills,
-        rawCustomQuestions: formData.customQuestions,
+        rawCustomQuestions: customQuestionsString,
         questions: JSON.stringify(generated.questions),
         answers: JSON.stringify(generated.correct_answers),
         topics: JSON.stringify(generated.topics || []),
@@ -622,15 +643,24 @@ Good luck! 🚀`
                   <Target className="w-3 h-3 text-blue-500" /> Position / Role{' '}
                   <span className="text-red-500">*</span>
                 </label>
-                <input
-                  name="position"
-                  type="text"
-                  required
-                  placeholder="e.g. Senior Frontend Engineer"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 placeholder:text-slate-300"
-                  value={formData.position}
-                  onChange={handleInput}
-                />
+                {assessmentType === 'icp' ? (
+                  <input
+                    type="text"
+                    disabled
+                    value={activeICPs.find(i => i.icpId === selectedIcpId)?.roleName || 'Select an ICP above'}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 outline-none cursor-not-allowed"
+                  />
+                ) : (
+                  <input
+                    name="position"
+                    type="text"
+                    required
+                    placeholder="e.g. Senior Frontend Engineer"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 placeholder:text-slate-300"
+                    value={formData.position}
+                    onChange={handleInput}
+                  />
+                )}
               </div>
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
@@ -706,25 +736,42 @@ Good luck! 🚀`
           <FormSection
             icon={ListPlus}
             title="Custom Questions"
-            description="These will be added at the end of the base assessment."
+            description="These will be asked verbatim after the base assessment."
           >
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1">
-                Questions (one per line)
-              </label>
-              <textarea
-                name="customQuestions"
-                rows={3}
-                placeholder={
-                  'e.g. Are you comfortable with Night Shifts?\nWhat is your current notice period?'
-                }
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-900 outline-none transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 resize-none placeholder:text-slate-300 leading-relaxed"
-                value={formData.customQuestions}
-                onChange={handleInput}
-              />
-              <p className="text-[10px] text-slate-400 italic pl-1 font-medium italic">
-                Custom questions are asked verbatim after the HR and AI sections.
-              </p>
+            <div className="space-y-3">
+              {formData.customQuestions.map((q, idx) => (
+                <div key={idx} className="flex items-center gap-2 animate-fadeIn">
+                  <div className="flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all">
+                    <input
+                      type="text"
+                      placeholder="e.g. What is your current notice period?"
+                      className="w-full px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-300"
+                      value={q}
+                      onChange={(e) => handleCustomQuestionChange(idx, e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeCustomQuestion(idx)}
+                    className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              
+              <button
+                type="button"
+                onClick={addCustomQuestion}
+                className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-4 py-2.5 rounded-lg transition-colors mt-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Another Question
+              </button>
             </div>
           </FormSection>
 

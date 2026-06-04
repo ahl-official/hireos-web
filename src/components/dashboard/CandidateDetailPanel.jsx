@@ -273,6 +273,8 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
           const summaryData = {
             summary: result?.summary || '',
             recommendation: result?.recommendation || '',
+            decision: result?.decision || '',
+            decisionReason: result?.decisionReason || '',
             icpFitAnalysis: result?.icpFitAnalysis || '',
             greenFlags: result?.greenFlags || [],
             redFlags: result?.redFlags || [],
@@ -350,6 +352,8 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
       const summaryData = {
         summary: result?.summary || '',
         recommendation: result?.recommendation || '',
+        decision: result?.decision || '',
+        decisionReason: result?.decisionReason || '',
         greenFlags: result?.greenFlags || [],
         redFlags: result?.redFlags || [],
       };
@@ -654,9 +658,9 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
           {!loading && detail && (
             <div className="space-y-6 bg-white">
               {/* Summary Cards */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-100">
-                  <p className="text-xs text-slate-500 mb-1">Status</p>
+                  <p className="text-xs text-slate-500 mb-1">Interview</p>
                   <StatusBadge status={detail.status} />
                 </div>
                 <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-100">
@@ -673,6 +677,19 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
                     className={`text-2xl font-extrabold ${Number(detail.tabSwitches) > 0 ? 'text-red-600' : 'text-emerald-600'}`}
                   >
                     {detail.tabSwitches || 0}
+                  </p>
+                </div>
+                <div
+                  className={`rounded-xl p-4 text-center border flex flex-col items-center justify-center ${
+                    detail.finalStatus === 'Shortlist' ? 'bg-emerald-100 border-emerald-200 text-emerald-800' :
+                    detail.finalStatus === 'Maybe' ? 'bg-amber-100 border-amber-200 text-amber-800' :
+                    detail.finalStatus === 'Reject' ? 'bg-red-100 border-red-200 text-red-800' :
+                    'bg-slate-50 border-slate-100 text-slate-500'
+                  }`}
+                >
+                  <p className="text-xs opacity-80 mb-1">HR Decision</p>
+                  <p className="text-xl font-black uppercase tracking-wide">
+                    {detail.finalStatus || 'Pending'}
                   </p>
                 </div>
               </div>

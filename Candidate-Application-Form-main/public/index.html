@@ -399,62 +399,7 @@
           <div class="form-group">
             <label>Position Applied For <span class="required-star">*</span></label>
             <select id="fPosition" class="form-control" required onchange="toggleOther('fPosition','positionOtherWrap'); updateSalesTestVisibility();">
-              <option value="">— Select Role —</option>
-              <optgroup label="🧴 Hair & Beauty">
-                <option>Hair Consultant</option>
-                <option>Hair Stylist / Technician</option>
-                <option>Hair Replacement Specialist</option>
-                <option>Trichologist</option>
-                <option>Beauty Therapist</option>
-                <option>Scalp Treatment Specialist</option>
-              </optgroup>
-              <optgroup label="💼 Sales & Business">
-                <option>Sales Executive</option>
-                <option>Senior Sales Executive</option>
-                <option>Business Development Executive</option>
-                <option>Business Development Manager</option>
-                <option>Key Account Manager</option>
-                <option>Regional Sales Manager</option>
-                <option>Zonal Sales Manager</option>
-                <option>National Sales Manager</option>
-              </optgroup>
-              <optgroup label="🏪 Store & Operations">
-                <option>Store Manager</option>
-                <option>Assistant Store Manager</option>
-                <option>Operations Executive</option>
-                <option>Operations Manager</option>
-                <option>Franchise Manager</option>
-              </optgroup>
-              <optgroup label="📞 Customer Support">
-                <option>Customer Support Executive</option>
-                <option>Customer Relationship Manager</option>
-                <option>CRM Executive</option>
-                <option>After Sales Support Executive</option>
-              </optgroup>
-              <optgroup label="📣 Marketing">
-                <option>Marketing Executive</option>
-                <option>Digital Marketing Executive</option>
-                <option>Social Media Manager</option>
-                <option>Content Creator / Influencer</option>
-                <option>Brand Manager</option>
-                <option>PR Executive</option>
-              </optgroup>
-              <optgroup label="🖥️ Tech & Admin">
-                <option>HR Executive</option>
-                <option>HR Manager</option>
-                <option>Accounts Executive</option>
-                <option>Admin Executive</option>
-                <option>IT Executive</option>
-                <option>Data Analyst</option>
-                <option>AI Developer</option>
-              </optgroup>
-              <optgroup label="🎓 Fresher / Intern">
-                <option>Management Trainee</option>
-                <option>Sales Intern</option>
-                <option>Marketing Intern</option>
-                <option>Operations Intern</option>
-              </optgroup>
-              <option value="Other">Other (specify below)</option>
+              <option value="">— Loading roles... —</option>
             </select>
             <div class="other-input-wrap" id="positionOtherWrap">
               <input type="text" id="fPositionOther" class="form-control" placeholder="Please specify the role...">
@@ -896,6 +841,34 @@
     return SALES_KEYWORDS.some(function(k) { return pos.indexOf(k) !== -1; });
   }
 
+  async function fetchRoles() {
+    var sel = document.getElementById('fPosition');
+    try {
+      var res = await fetch('/api/get-roles');
+      if (res.ok) {
+        var data = await res.json();
+        if (data.roles && data.roles.length > 0) {
+          sel.innerHTML = '<option value="">— Select Role —</option>';
+          data.roles.forEach(function(r) {
+            var opt = document.createElement('option');
+            opt.value = r;
+            opt.textContent = r;
+            sel.appendChild(opt);
+          });
+          var other = document.createElement('option');
+          other.value = 'Other';
+          other.textContent = 'Other (specify below)';
+          sel.appendChild(other);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load roles:', e);
+    }
+    // Fallback if API fails
+    sel.innerHTML = '<option value="">— Select Role —</option><option value="Other">Other (specify below)</option>';
+  }
+
   function updateSalesTestVisibility() {
     var block = document.getElementById('salesTestBlock');
     if (!block) return;
@@ -1116,14 +1089,35 @@
       if (!res.ok) throw new Error('SERVER_ERROR_' + res.status);
       return res.json();
     })
-    .then(function(result) {
-      document.getElementById('loadingOverlay').classList.remove('show');
+    .then(async function(result) {
       if (result.success) {
-        loadApplicantPortal(savedData, result.resumeLink, result.interviewId);
+        if (result.cvText) {
+          document.getElementById('loadingText').textContent = 'Generating your custom AI Interview (this takes about 20 seconds)...';
+          try {
+            var aiRes = await fetch('https://script.google.com/macros/s/AKfycbxHKQek4oF4YXgeuppoC_it59AeaemYJ-YYJ5iVX03tI5QruMhuWKjZBwJ8r2YjBXI/exec', {
+              method: 'POST',
+              body: JSON.stringify({
+                action: 'generateCandidateTest',
+                name: savedData.fullName,
+                role: savedData.positionApplied,
+                resumeText: result.cvText,
+                rowNumber: result.rowNumber
+              })
+            });
+            var aiData = await aiRes.json();
+            if (aiData.status === 'success' && aiData.interviewId) {
+              result.interviewId = aiData.interviewId;
+            }
+          } catch(e) {
+            console.error('Frontend AI Generation Error:', e);
+          }
+        }
         
-        // The "Start AI Interview" button is now located directly on the dashboard screen
+        document.getElementById('loadingOverlay').classList.remove('show');
+        loadApplicantPortal(savedData, result.resumeLink, result.interviewId);
         setTimeout(function() { document.getElementById('thankyouModal').classList.add('show'); }, 400);
       } else {
+        document.getElementById('loadingOverlay').classList.remove('show');
         showAlert(result.message || 'Failed to submit. Please try again.', 'error', 'Submission Failed');
       }
     })
@@ -1363,6 +1357,7 @@
 
   window.addEventListener('DOMContentLoaded', function() {
     updateStepIndicators(1);
+    fetchRoles();
     VoiceInput.init();
   });
 </script>
