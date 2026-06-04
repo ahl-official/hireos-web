@@ -1141,11 +1141,25 @@ function legacyDoPost_(e, action, data) {
       const ss = getSpreadsheet();
       const sheet = getOrCreateSheet(ss);
       
-      const combinedQuestions = HR_QUESTIONS.map(q => q.question).concat(aiData.questions || []);
-      const combinedAnswers = HR_QUESTIONS.map(q => q.correctAnswer).concat(aiData.correct_answers || []);
-      const combinedTopics = HR_QUESTIONS.map(q => q.topic).concat(aiData.topics || []);
-      const combinedDifficulty = HR_QUESTIONS.map(q => q.difficulty).concat(aiData.difficulty || []);
-      const combinedTypes = HR_QUESTIONS.map(q => q.questionType).concat((aiData.questions || []).map(()=>'technical'));
+      let combinedQuestions = [];
+      let combinedAnswers = [];
+      let combinedTopics = [];
+      let combinedDifficulty = [];
+      let combinedTypes = [];
+
+      if (data.skipHrQuestions) {
+        combinedQuestions = aiData.questions || [];
+        combinedAnswers = aiData.correct_answers || [];
+        combinedTopics = aiData.topics || [];
+        combinedDifficulty = aiData.difficulty || [];
+        combinedTypes = (aiData.questions || []).map(()=>'technical');
+      } else {
+        combinedQuestions = HR_QUESTIONS.map(q => q.question).concat(aiData.questions || []);
+        combinedAnswers = HR_QUESTIONS.map(q => q.correctAnswer).concat(aiData.correct_answers || []);
+        combinedTopics = HR_QUESTIONS.map(q => q.topic).concat(aiData.topics || []);
+        combinedDifficulty = HR_QUESTIONS.map(q => q.difficulty).concat(aiData.difficulty || []);
+        combinedTypes = HR_QUESTIONS.map(q => q.questionType).concat((aiData.questions || []).map(()=>'technical'));
+      }
 
       appendRowByHeaders_(sheet, {
         ID: id,

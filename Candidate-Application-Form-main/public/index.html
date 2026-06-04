@@ -1176,7 +1176,8 @@
                 role: savedData.positionApplied,
                 resumeText: result.cvText,
                 rowNumber: result.rowNumber,
-                selectedIcpId: icpId
+                selectedIcpId: icpId,
+                skipHrQuestions: true
               })
             });
             var aiData = await aiRes.json();
