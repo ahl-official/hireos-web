@@ -682,15 +682,15 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
                 </div>
                 <div
                   className={`rounded-xl p-4 text-center border flex flex-col items-center justify-center relative group ${
-                    detail.finalStatus === 'Shortlist' ? 'bg-emerald-100 border-emerald-200 text-emerald-800' :
-                    detail.finalStatus === 'Maybe' ? 'bg-amber-100 border-amber-200 text-amber-800' :
-                    detail.finalStatus === 'Reject' ? 'bg-red-100 border-red-200 text-red-800' :
+                    (detailedSummary?.decision || detail.finalStatus) === 'Shortlist' ? 'bg-emerald-100 border-emerald-200 text-emerald-800' :
+                    (detailedSummary?.decision || detail.finalStatus) === 'Maybe' ? 'bg-amber-100 border-amber-200 text-amber-800' :
+                    (detailedSummary?.decision || detail.finalStatus) === 'Reject' ? 'bg-red-100 border-red-200 text-red-800' :
                     'bg-slate-50 border-slate-100 text-slate-500'
                   }`}
                 >
                   <p className="text-xs opacity-80 mb-1">HR Decision</p>
                   <p className="text-xl font-black uppercase tracking-wide">
-                    {detail.finalStatus || 'Pending'}
+                    {detailedSummary?.decision || detail.finalStatus || 'Pending'}
                   </p>
                   
                   {detailedSummary?.decisionReason && (
