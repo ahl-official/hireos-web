@@ -326,19 +326,8 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
       setRegeneratingFullReport(true);
       setReportNote('');
 
-      // Step 1: Regenerate report (re-grade all answers)
-      const updated = await regenerateReport(detail.id);
-      const parsedDetail = {
-        ...updated,
-        questions: parseJsonOrArray(updated.questions),
-        correctAnswers: parseJsonOrArray(updated.correctAnswers),
-        candidateAnswers: parseJsonOrArray(updated.candidateAnswers),
-        topics: parseJsonOrArray(updated.topics),
-        difficulty: parseJsonOrArray(updated.difficulty),
-        perQuestionScores: parseJsonOrArray(updated.perQuestionScores),
-        questionTypes: parseJsonOrArray(updated.questionTypes),
-      };
-      setDetail(parsedDetail);
+      // We ONLY regenerate the Detailed Summary. We do NOT re-grade the score to prevent the score from fluctuating.
+      const parsedDetail = { ...detail };
 
       // Step 2: Regenerate AI summary
       const result = await generateDetailedSummary(
