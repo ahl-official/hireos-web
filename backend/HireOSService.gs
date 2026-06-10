@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Returns the Drive folder for the NEW system audio proof files.
  */
 function getOrCreateNewInterviewAudioFolder_(interviewId, candidateId, candidateName) {
@@ -1008,7 +1008,33 @@ function legacyDoPost_(e, action, data) {
         );
       }
 
-      // 5. Update Candidates Sheet
+      // 5. Generate Detailed Summary automatically
+      let detailedSummaryResult = null;
+      let hrData = null;
+      try {
+        const candidateSheet = getOrCreateSheet(ss);
+        const cRowIdx = findRowIndexByHeaderValue_(candidateSheet, 'ID', candidateId);
+        if (cRowIdx !== -1) {
+          const cRow = getRowObjectByHeaders_(candidateSheet, cRowIdx);
+          hrData = parseStoredValue(cRow['HR Form Data'], null);
+        }
+        
+        const questionsData = gradePromptData.map((q, i) => ({
+          question: q.question,
+          topic: interviewAnswers[i]['Topic'] || `Question ${i + 1}`,
+          candidate_answer: q.answer,
+          feedback: gradeResult.per_question_scores[i]?.feedback || '',
+          score: gradeResult.per_question_scores[i]?.score || 0,
+          question_type: interviewAnswers[i]['Question Type'] || 'technical',
+        }));
+
+        const reportMessages = buildDetailedReportPrompt_(questionsData, icpSnapshot, hrData);
+        detailedSummaryResult = callOpenRouter(reportMessages);
+      } catch (e) {
+        saveSystemLog_('ERROR', 'submitInterview', interviewId, candidateId, 'Detailed Summary Failed', e.toString());
+      }
+
+      // 6. Update Candidates Sheet
       const now = new Date().toISOString();
 
       const candidateAnswersList = interviewAnswers.map(
@@ -1024,12 +1050,66 @@ function legacyDoPost_(e, action, data) {
         'Per Question Scores': JSON.stringify(gradeResult.per_question_scores || []),
       };
 
+      if (detailedSummaryResult) {
+        updateData['Detailed Summary'] = JSON.stringify(detailedSummaryResult);
+        updateData['Final Status'] = detailedSummaryResult.decision || 'Pending';
+        updateData['Formatted Summary'] = `[${(detailedSummaryResult.decision || 'PENDING').toUpperCase()}]\n\n${detailedSummaryResult.summary || ''}\n\nReason: ${detailedSummaryResult.decisionReason || ''}`;
+        updateData['Formatted Green Flags'] = detailedSummaryResult.greenFlags?.map(g => `- ${g.title}: ${g.detail}`).join('\n') || '';
+        updateData['Formatted Red Flags'] = detailedSummaryResult.redFlags?.map(r => `- ${r.title}: ${r.detail}`).join('\n') || '';
+        updateData['Report Link'] = `https://hireos-web.vercel.app/report/${candidateId}`;
+      }
+
       if (folder) updateData['Audio Folder Link'] = folder.getUrl();
       if (finalTranscriptLink) updateData['Final Transcript Link'] = finalTranscriptLink;
 
       try {
         const candidateSheet = getOrCreateSheet(ss);
         updateRowByHeaders_(candidateSheet, 'ID', candidateId, updateData);
+
+        // 7. Sync to Candidate Applications Sheet
+        const hrSs = SpreadsheetApp.openById('1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI');
+        const appSheet = hrSs.getSheetByName('Candidate Applications');
+        if (appSheet) {
+          const appData = appSheet.getDataRange().getValues();
+          if (appData.length > 0) {
+            const headers = appData[0].map(h => String(h).trim());
+            const intvIdCol = headers.findIndex(h => h.toLowerCase() === 'interview id');
+            
+            if (intvIdCol !== -1) {
+              const safeCandidateId = String(interviewId).trim();
+              for (let i = 1; i < appData.length; i++) {
+                if (String(appData[i][intvIdCol]).trim() === safeCandidateId) {
+                  const rowNum = i + 1;
+                  
+                  // Try to find the exact columns, otherwise fallback to known indices
+                  const scoreCol = headers.findIndex(h => h.toLowerCase() === 'interview score') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'interview score') + 1 : 53;
+                  const summaryCol = headers.findIndex(h => h.toLowerCase() === 'detailed summary') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'detailed summary') + 1 : 54;
+                  const greenCol = headers.findIndex(h => h.toLowerCase() === 'green flags') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'green flags') + 1 : 55;
+                  const redCol = headers.findIndex(h => h.toLowerCase() === 'red flags') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'red flags') + 1 : 56;
+                  const linkCol = headers.findIndex(h => h.toLowerCase() === 'report link') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'report link') + 1 : 57;
+                  const statusCol = headers.findIndex(h => h.toLowerCase() === 'final status') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'final status') + 1 : -1;
+
+                // Prepare values
+                const reportUrl = `https://hireos-web.vercel.app/report/${candidateId}`;
+                const greenStr = detailedSummaryResult?.greenFlags?.map(g => `- ${g.title}: ${g.detail}`).join('\n') || '';
+                const redStr = detailedSummaryResult?.redFlags?.map(r => `- ${r.title}: ${r.detail}`).join('\n') || '';
+                const summaryStr = detailedSummaryResult ? `[${detailedSummaryResult.decision?.toUpperCase()}]\n\n${detailedSummaryResult.summary}\n\nReason: ${detailedSummaryResult.decisionReason}` : '';
+
+                // Update row
+                appSheet.getRange(rowNum, scoreCol).setValue(`${gradeResult.overall_score}%`);
+                appSheet.getRange(rowNum, summaryCol).setValue(summaryStr);
+                appSheet.getRange(rowNum, greenCol).setValue(greenStr);
+                appSheet.getRange(rowNum, redCol).setValue(redStr);
+                appSheet.getRange(rowNum, linkCol).setValue(reportUrl);
+                  if (statusCol !== -1 && detailedSummaryResult) appSheet.getRange(rowNum, statusCol).setValue(detailedSummaryResult.decision?.toUpperCase() || 'PENDING');
+                  if (statusCol !== -1 && parsedObj) appSheet.getRange(rowNum, statusCol).setValue((parsedObj.decision || 'PENDING').toUpperCase());
+                  if (statusCol !== -1 && detailedSummaryResult) appSheet.getRange(rowNum, statusCol).setValue(detailedSummaryResult.decision?.toUpperCase() || 'PENDING');
+                break;
+              }
+            }
+          }
+        }
+        }
       } catch (e) {
         // Ignore errors silently
       }
@@ -1190,9 +1270,10 @@ function legacyDoPost_(e, action, data) {
       // Link back to Application Form if rowNumber is provided
       if (data.rowNumber) {
         try {
-          const appSheet = ss.getSheetByName('Candidate Applications');
+          const hrSs = SpreadsheetApp.openById('1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI');
+          const appSheet = hrSs.getSheetByName('Candidate Applications');
           if (appSheet) {
-            appSheet.getRange(data.rowNumber, 52).setValue(id);
+            appSheet.getRange(data.rowNumber, 42).setValue(id);
           }
         } catch(e) {
           console.error('Failed to link interview ID to HR sheet:', e);
@@ -1764,17 +1845,75 @@ function legacyDoPost_(e, action, data) {
         if (summaryData.decision) finalStatus = summaryData.decision;
       }
       
+      const parsedObj = typeof summaryData === 'string' ? JSON.parse(summaryData) : summaryData;
+      
       const updateData = {
         'Detailed Summary': summaryStr,
+        'Formatted Summary': parsedObj ? `[${(parsedObj.decision || 'PENDING').toUpperCase()}]\n\n${parsedObj.summary || ''}\n\nReason: ${parsedObj.decisionReason || ''}` : '',
+        'Formatted Green Flags': parsedObj?.greenFlags?.map(g => `- ${g.title}: ${g.detail}`).join('\n') || '',
+        'Formatted Red Flags': parsedObj?.redFlags?.map(r => `- ${r.title}: ${r.detail}`).join('\n') || '',
+        'Report Link': `https://hireos-web.vercel.app/report/${candidateId}`
       };
       
       if (finalStatus) {
         updateData['Final Status'] = finalStatus;
       }
+      
+      try {
+        updateRowByHeaders_(sheet, 'ID', candidateId, updateData);
 
-      const success = updateRowByHeaders_(sheet, 'ID', candidateId, updateData);
-      if (success) return createSuccessResponse_({ data: { saved: true } });
-      return createErrorResponse_('Candidate not found');
+        // Fetch score to sync to HR sheet
+        const cRowIdx = findRowIndexByHeaderValue_(sheet, 'ID', candidateId);
+        let currentScore = '';
+        if (cRowIdx !== -1) {
+          const cRow = getRowObjectByHeaders_(sheet, cRowIdx);
+          currentScore = cRow['Score'] || '';
+        }
+
+        // Sync to Candidate Applications Sheet
+        const hrSs = SpreadsheetApp.openById('1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI');
+        const appSheet = hrSs.getSheetByName('Candidate Applications');
+        if (appSheet) {
+          const appData = appSheet.getDataRange().getValues();
+          if (appData.length > 0) {
+            const headers = appData[0].map(h => String(h).trim());
+            const intvIdCol = headers.findIndex(h => h.toLowerCase() === 'interview id');
+            
+            if (intvIdCol !== -1) {
+              const safeCandidateId = String(candidateId).trim();
+              for (let i = 1; i < appData.length; i++) {
+                if (String(appData[i][intvIdCol]).trim() === safeCandidateId) {
+                  const rowNum = i + 1;
+                  
+                  const scoreCol = headers.findIndex(h => h.toLowerCase() === 'interview score') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'interview score') + 1 : 53;
+                  const summaryCol = headers.findIndex(h => h.toLowerCase() === 'detailed summary') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'detailed summary') + 1 : 54;
+                  const greenCol = headers.findIndex(h => h.toLowerCase() === 'green flags') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'green flags') + 1 : 55;
+                  const redCol = headers.findIndex(h => h.toLowerCase() === 'red flags') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'red flags') + 1 : 56;
+                  const linkCol = headers.findIndex(h => h.toLowerCase() === 'report link') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'report link') + 1 : 57;
+                  const statusCol = headers.findIndex(h => h.toLowerCase() === 'final status') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'final status') + 1 : -1;
+
+                  const reportUrl = `https://hireos-web.vercel.app/report/${candidateId}`;
+                  const greenStr = parsedObj?.greenFlags?.map(g => `- ${g.title}: ${g.detail}`).join('\n') || '';
+                  const redStr = parsedObj?.redFlags?.map(r => `- ${r.title}: ${r.detail}`).join('\n') || '';
+                  const summaryStr = parsedObj ? `[${(parsedObj.decision || 'PENDING').toUpperCase()}]\n\n${parsedObj.summary}\n\nReason: ${parsedObj.decisionReason}` : '';
+
+                  if (currentScore) appSheet.getRange(rowNum, scoreCol).setValue(`${currentScore}%`);
+                  appSheet.getRange(rowNum, summaryCol).setValue(summaryStr);
+                  appSheet.getRange(rowNum, greenCol).setValue(greenStr);
+                  appSheet.getRange(rowNum, redCol).setValue(redStr);
+                  appSheet.getRange(rowNum, linkCol).setValue(reportUrl);
+                  if (statusCol !== -1 && parsedObj) appSheet.getRange(rowNum, statusCol).setValue((parsedObj.decision || 'PENDING').toUpperCase());
+                  break;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // ignore silently
+      }
+
+      return createResponse({ status: 'success' });
     }
 
     return createResponse({ status: 'error', message: 'Invalid action' });
@@ -2080,4 +2219,70 @@ function saveICP_(data) {
   }
 
   return payload;
+}
+
+function forceSyncPastInterviews() {
+  const targetIds = [
+    '3837f738-459d-44b9-a46f-8230de4fb77b',
+    'b553480f-6650-46e1-86e7-c805f30dae78'
+  ];
+
+  const ss = getSpreadsheet();
+  const candidateSheet = getOrCreateSheet(ss);
+  const cData = candidateSheet.getDataRange().getValues();
+  const cHeaders = cData[0];
+  
+  const idCol = cHeaders.indexOf('ID');
+  const scoreCol = cHeaders.indexOf('Score');
+  const summaryCol = cHeaders.indexOf('Detailed Summary');
+  
+  const hrSs = SpreadsheetApp.openById('1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI');
+  const appSheet = hrSs.getSheetByName('Candidate Applications');
+  if (!appSheet) return;
+  const appData = appSheet.getDataRange().getValues();
+  const appHeaders = appData[0].map(h => String(h).trim().toLowerCase());
+  
+  const hrIdCol = appHeaders.indexOf('interview id');
+  const hrScoreCol = appHeaders.indexOf('interview score') !== -1 ? appHeaders.indexOf('interview score') + 1 : 53;
+  const hrSummaryCol = appHeaders.indexOf('detailed summary') !== -1 ? appHeaders.indexOf('detailed summary') + 1 : 54;
+  const hrGreenCol = appHeaders.indexOf('green flags') !== -1 ? appHeaders.indexOf('green flags') + 1 : 55;
+  const hrRedCol = appHeaders.indexOf('red flags') !== -1 ? appHeaders.indexOf('red flags') + 1 : 56;
+  const hrLinkCol = appHeaders.indexOf('report link') !== -1 ? appHeaders.indexOf('report link') + 1 : 57;
+  const hrStatusCol = appHeaders.indexOf('final status') !== -1 ? appHeaders.indexOf('final status') + 1 : -1;
+
+  targetIds.forEach(targetId => {
+    let cRowMatch = null;
+    for (let i = 1; i < cData.length; i++) {
+      if (String(cData[i][idCol]).trim() === targetId) {
+        cRowMatch = cData[i];
+        break;
+      }
+    }
+    
+    if (cRowMatch) {
+      const summaryJson = cRowMatch[summaryCol];
+      const currentScore = cRowMatch[scoreCol];
+      let parsedObj = null;
+      try { parsedObj = JSON.parse(summaryJson); } catch(e) {}
+      
+      const reportUrl = `https://hireos-web.vercel.app/report/${targetId}`;
+      const greenStr = parsedObj?.greenFlags?.map(g => `- ${g.title}: ${g.detail}`).join('\n') || '';
+      const redStr = parsedObj?.redFlags?.map(r => `- ${r.title}: ${r.detail}`).join('\n') || '';
+      const summaryStr = parsedObj ? `[${(parsedObj.decision || 'PENDING').toUpperCase()}]\n\n${parsedObj.summary}\n\nReason: ${parsedObj.decisionReason}` : '';
+
+      for (let i = 1; i < appData.length; i++) {
+        if (String(appData[i][hrIdCol]).trim() === targetId) {
+          const rowNum = i + 1;
+          if (currentScore) appSheet.getRange(rowNum, hrScoreCol).setValue(`${currentScore}%`);
+          appSheet.getRange(rowNum, hrSummaryCol).setValue(summaryStr);
+          appSheet.getRange(rowNum, hrGreenCol).setValue(greenStr);
+          appSheet.getRange(rowNum, hrRedCol).setValue(redStr);
+          appSheet.getRange(rowNum, hrLinkCol).setValue(reportUrl);
+          if (hrStatusCol !== -1 && parsedObj) appSheet.getRange(rowNum, hrStatusCol).setValue((parsedObj.decision || 'PENDING').toUpperCase());
+          if (hrStatusCol !== -1 && parsedObj) appSheet.getRange(rowNum, hrStatusCol).setValue((parsedObj.decision || 'PENDING').toUpperCase());
+          break;
+        }
+      }
+    }
+  });
 }

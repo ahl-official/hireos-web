@@ -37,6 +37,10 @@ const HIREOS_SHEET_SCHEMA = {
       'Final Transcript Link',
       'HR Form Data',
       'Final Status',
+      'Formatted Summary',
+      'Formatted Green Flags',
+      'Formatted Red Flags',
+      'Report Link',
     ],
   },
   ICP_MASTER: {
