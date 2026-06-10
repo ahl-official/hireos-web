@@ -131,9 +131,18 @@ export default function ReportPage() {
                 <span className="flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-emerald-500" /> AI Assessed</span>
               </div>
             </div>
-            <div className="text-center bg-slate-50 rounded-2xl p-4 border border-slate-100 min-w-[140px]">
+            <div className="text-center bg-slate-50 rounded-2xl p-4 border border-slate-100 min-w-[140px] flex flex-col items-center justify-center">
               <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Score</p>
-              <div className="text-5xl font-extrabold text-indigo-600">{candidate.score}<span className="text-2xl text-slate-400">/100</span></div>
+              <div className="text-5xl font-extrabold text-indigo-600 mb-2">{candidate.score}<span className="text-2xl text-slate-400">/100</span></div>
+              {summaryObj.decision && (
+                <div className={`text-xs font-bold px-3 py-1 rounded-full inline-block uppercase tracking-wide ${
+                  summaryObj.decision.toLowerCase() === 'shortlist' ? 'bg-emerald-100 text-emerald-700' :
+                  summaryObj.decision.toLowerCase() === 'reject' ? 'bg-red-100 text-red-700' :
+                  'bg-amber-100 text-amber-700'
+                }`}>
+                  {summaryObj.decision}
+                </div>
+              )}
             </div>
           </div>
 
