@@ -1178,7 +1178,7 @@ function legacyDoPost_(e, action, data) {
                 const reportUrl = `https://hireos-web.vercel.app/report/${candidateId}`;
                 const greenStr = detailedSummaryResult?.greenFlags?.map(g => `- ${g.title}: ${g.detail}`).join('\n') || '';
                 const redStr = detailedSummaryResult?.redFlags?.map(r => `- ${r.title}: ${r.detail}`).join('\n') || '';
-                const summaryStr = detailedSummaryResult ? `[${detailedSummaryResult.decision?.toUpperCase()}]\n\n${detailedSummaryResult.summary}\n\nReason: ${detailedSummaryResult.decisionReason}` : '';
+                const summaryStr = detailedSummaryResult ? `[${String(detailedSummaryResult.decision || 'PENDING').toUpperCase()}]\n\n${detailedSummaryResult.summary || ''}\n\nReason: ${detailedSummaryResult.decisionReason || ''}` : '';
 
                 // Update row
                 appSheet.getRange(rowNum, scoreCol).setValue(`${gradeResult.overall_score}%`);
