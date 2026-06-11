@@ -1186,10 +1186,8 @@ function legacyDoPost_(e, action, data) {
                 appSheet.getRange(rowNum, greenCol).setValue(greenStr);
                 appSheet.getRange(rowNum, redCol).setValue(redStr);
                 appSheet.getRange(rowNum, linkCol).setValue(reportUrl);
-                  if (statusCol !== -1 && detailedSummaryResult) appSheet.getRange(rowNum, statusCol).setValue(detailedSummaryResult.decision?.toUpperCase() || 'PENDING');
-                  if (statusCol !== -1 && parsedObj) appSheet.getRange(rowNum, statusCol).setValue((parsedObj.decision || 'PENDING').toUpperCase());
-                  if (statusCol !== -1 && detailedSummaryResult) appSheet.getRange(rowNum, statusCol).setValue(detailedSummaryResult.decision?.toUpperCase() || 'PENDING');
-                break;
+                  if (statusCol !== -1) appSheet.getRange(rowNum, statusCol).setValue(String(detailedSummaryResult?.decision || 'PENDING').toUpperCase());
+                  break;
               }
             }
           }
@@ -1980,7 +1978,7 @@ function legacyDoPost_(e, action, data) {
                   const reportUrl = `https://hireos-web.vercel.app/report/${candidateId}`;
                   const greenStr = parsedObj?.greenFlags?.map(g => `- ${g.title}: ${g.detail}`).join('\n') || '';
                   const redStr = parsedObj?.redFlags?.map(r => `- ${r.title}: ${r.detail}`).join('\n') || '';
-                  const summaryStr = parsedObj ? `[${(parsedObj.decision || 'PENDING').toUpperCase()}]\n\n${parsedObj.summary}\n\nReason: ${parsedObj.decisionReason}` : '';
+                  const summaryStr = parsedObj ? `[${String(parsedObj.decision || 'PENDING').toUpperCase()}]\n\n${parsedObj.summary || ''}\n\nReason: ${parsedObj.decisionReason || ''}` : '';
 
                   if (currentScore) appSheet.getRange(rowNum, scoreCol).setValue(`${currentScore}%`);
                   appSheet.getRange(rowNum, summaryCol).setValue(summaryStr);
@@ -2354,7 +2352,7 @@ function forceSyncPastInterviews() {
       const reportUrl = `https://hireos-web.vercel.app/report/${targetId}`;
       const greenStr = parsedObj?.greenFlags?.map(g => `- ${g.title}: ${g.detail}`).join('\n') || '';
       const redStr = parsedObj?.redFlags?.map(r => `- ${r.title}: ${r.detail}`).join('\n') || '';
-      const summaryStr = parsedObj ? `[${(parsedObj.decision || 'PENDING').toUpperCase()}]\n\n${parsedObj.summary}\n\nReason: ${parsedObj.decisionReason}` : '';
+      const summaryStr = parsedObj ? `[${String(parsedObj.decision || 'PENDING').toUpperCase()}]\n\n${parsedObj.summary || ''}\n\nReason: ${parsedObj.decisionReason || ''}` : '';
 
       for (let i = 1; i < appData.length; i++) {
         if (String(appData[i][hrIdCol]).trim() === targetId) {
@@ -2364,8 +2362,7 @@ function forceSyncPastInterviews() {
           appSheet.getRange(rowNum, hrGreenCol).setValue(greenStr);
           appSheet.getRange(rowNum, hrRedCol).setValue(redStr);
           appSheet.getRange(rowNum, hrLinkCol).setValue(reportUrl);
-          if (hrStatusCol !== -1 && parsedObj) appSheet.getRange(rowNum, hrStatusCol).setValue((parsedObj.decision || 'PENDING').toUpperCase());
-          if (hrStatusCol !== -1 && parsedObj) appSheet.getRange(rowNum, hrStatusCol).setValue((parsedObj.decision || 'PENDING').toUpperCase());
+          if (hrStatusCol !== -1) appSheet.getRange(rowNum, hrStatusCol).setValue(String(parsedObj?.decision || 'PENDING').toUpperCase());
           break;
         }
       }
