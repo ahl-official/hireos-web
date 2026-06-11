@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Returns the Drive folder for the NEW system audio proof files.
  */
 function getOrCreateNewInterviewAudioFolder_(interviewId, candidateId, candidateName) {
@@ -604,7 +604,92 @@ function legacyDoPost_(e, action, data) {
         Status: data.status,
         'Submitted At': new Date().toISOString(),
       });
-      if (success) return createSuccessResponse_({});
+      
+      if (success) {
+        try {
+          let detailedSummaryResult = null;
+          let hrData = null;
+          let icpSnapshot = null;
+          const cRowIdx = findRowIndexByHeaderValue_(sheet, 'ID', id);
+          if (cRowIdx !== -1) {
+            const cRow = getRowObjectByHeaders_(sheet, cRowIdx);
+            hrData = parseStoredValue(cRow['HR Form Data'], null);
+            icpSnapshot = parseStoredValue(cRow['ICP Snapshot'], null);
+            
+            const parseStored = (v) => { try { return typeof v === 'string' ? JSON.parse(v) : (v || []); } catch { return []; } };
+            const questions = parseStored(cRow['Questions']);
+            const topics = parseStored(cRow['Topics']);
+            const questionTypes = parseStored(cRow['Question Types']);
+            const candidateAnswersArr = parseStored(data.candidateAnswers);
+            const perQuestionScoresArr = parseStored(data.perQuestionScores || '');
+            
+            const questionsData = questions.map((q, idx) => ({
+              question: q,
+              topic: topics[idx] || `Question ${idx + 1}`,
+              candidate_answer: candidateAnswersArr[idx] || '(no answer given)',
+              feedback: perQuestionScoresArr[idx]?.feedback || '',
+              score: perQuestionScoresArr[idx]?.score || 0,
+              question_type: questionTypes?.[idx] || 'technical',
+            }));
+
+            const reportMessages = buildDetailedReportPrompt_(questionsData, icpSnapshot, hrData);
+            detailedSummaryResult = callOpenRouter(reportMessages);
+
+            const updateData = {
+              'Detailed Summary': JSON.stringify(detailedSummaryResult),
+              'Final Status': detailedSummaryResult.decision || 'Pending',
+              'Formatted Summary': `[${String(detailedSummaryResult.decision || 'PENDING').toUpperCase()}]\n\n${detailedSummaryResult.summary || ''}\n\nReason: ${detailedSummaryResult.decisionReason || ''}`,
+              'Formatted Green Flags': detailedSummaryResult.greenFlags?.map(g => `- ${g.title}: ${g.detail}`).join('\n') || '',
+              'Formatted Red Flags': detailedSummaryResult.redFlags?.map(r => `- ${r.title}: ${r.detail}`).join('\n') || '',
+              'Report Link': `https://hireos-web.vercel.app/report/${id}`
+            };
+            
+            try {
+              updateRowByHeaders_(sheet, 'ID', id, updateData);
+            } catch (err) {}
+
+            const hrSs = SpreadsheetApp.openById('1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI');
+            const appSheet = hrSs.getSheetByName('Candidate Applications');
+            if (appSheet) {
+              const appData = appSheet.getDataRange().getValues();
+              if (appData.length > 0) {
+                const headers = appData[0].map(h => String(h).trim());
+                const intvIdCol = headers.findIndex(h => h.toLowerCase() === 'interview id');
+                if (intvIdCol !== -1) {
+                  const safeCandidateId = String(id).trim();
+                  for (let i = 1; i < appData.length; i++) {
+                    if (String(appData[i][intvIdCol]).trim() === safeCandidateId) {
+                      const rowNum = i + 1;
+                      const scoreCol = headers.findIndex(h => h.toLowerCase() === 'interview score') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'interview score') + 1 : 53;
+                      const summaryCol = headers.findIndex(h => h.toLowerCase() === 'detailed summary') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'detailed summary') + 1 : 54;
+                      const greenCol = headers.findIndex(h => h.toLowerCase() === 'green flags') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'green flags') + 1 : 55;
+                      const redCol = headers.findIndex(h => h.toLowerCase() === 'red flags') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'red flags') + 1 : 56;
+                      const linkCol = headers.findIndex(h => h.toLowerCase() === 'report link') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'report link') + 1 : 57;
+                      const statusCol = headers.findIndex(h => h.toLowerCase() === 'final status') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'final status') + 1 : -1;
+
+                      const reportUrl = `https://hireos-web.vercel.app/report/${id}`;
+                      const greenStr = detailedSummaryResult?.greenFlags?.map(g => `- ${g.title}: ${g.detail}`).join('\n') || '';
+                      const redStr = detailedSummaryResult?.redFlags?.map(r => `- ${r.title}: ${r.detail}`).join('\n') || '';
+                      const summaryStr = `[${String(detailedSummaryResult.decision || 'PENDING').toUpperCase()}]\n\n${detailedSummaryResult.summary || ''}\n\nReason: ${detailedSummaryResult.decisionReason || ''}`;
+
+                      appSheet.getRange(rowNum, scoreCol).setValue(`${data.score}%`);
+                      appSheet.getRange(rowNum, summaryCol).setValue(summaryStr);
+                      appSheet.getRange(rowNum, greenCol).setValue(greenStr);
+                      appSheet.getRange(rowNum, redCol).setValue(redStr);
+                      appSheet.getRange(rowNum, linkCol).setValue(reportUrl);
+                      if (statusCol !== -1) appSheet.getRange(rowNum, statusCol).setValue(String(detailedSummaryResult.decision || 'PENDING').toUpperCase());
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (syncErr) {
+          Logger.log('Submit Auto Sync failed: ' + syncErr.toString());
+        }
+        return createSuccessResponse_({});
+      }
       return createErrorResponse_('Test not found');
     }
 
@@ -2224,7 +2309,8 @@ function saveICP_(data) {
 function forceSyncPastInterviews() {
   const targetIds = [
     '3837f738-459d-44b9-a46f-8230de4fb77b',
-    'b553480f-6650-46e1-86e7-c805f30dae78'
+    'b553480f-6650-46e1-86e7-c805f30dae78',
+    '120417dd-8db1-4250-be91-365eac4c2b76'
   ];
 
   const ss = getSpreadsheet();
