@@ -1161,10 +1161,14 @@ function legacyDoPost_(e, action, data) {
             const intvIdCol = headers.findIndex(h => h.toLowerCase() === 'interview id');
             
             if (intvIdCol !== -1) {
-              const safeCandidateId = String(interviewId).trim();
+              const safeCandidateId = String(candidateId).trim();
+              console.log(`[submitInterview] Syncing to HR Sheet. Target Candidate ID: ${safeCandidateId}`);
+              let foundRow = false;
               for (let i = 1; i < appData.length; i++) {
                 if (String(appData[i][intvIdCol]).trim() === safeCandidateId) {
+                  foundRow = true;
                   const rowNum = i + 1;
+                  console.log(`[submitInterview] Found candidate at row ${rowNum}`);
                   
                   // Try to find the exact columns, otherwise fallback to known indices
                   const scoreCol = headers.findIndex(h => h.toLowerCase() === 'interview score') !== -1 ? headers.findIndex(h => h.toLowerCase() === 'interview score') + 1 : 53;
@@ -1188,13 +1192,18 @@ function legacyDoPost_(e, action, data) {
                 appSheet.getRange(rowNum, linkCol).setValue(reportUrl);
                   if (statusCol !== -1) appSheet.getRange(rowNum, statusCol).setValue(String(detailedSummaryResult?.decision || 'PENDING').toUpperCase());
                   break;
+                }
               }
+              if (!foundRow) {
+                console.log(`[submitInterview] Warning: Candidate ID ${safeCandidateId} not found in HR Sheet.`);
+              }
+            } else {
+               console.log(`[submitInterview] Warning: Could not find 'Interview ID' column in HR Sheet.`);
             }
           }
         }
-        }
       } catch (e) {
-        // Ignore errors silently
+        console.error(`[submitInterview] Error syncing to HR Sheet: ${e.message}`);
       }
 
       saveInterviewAuditEvent(
