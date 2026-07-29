@@ -14,11 +14,14 @@ import {
   regenerateReport,
   generateDetailedSummary,
   saveCandidateSummary,
+  getPsychometricResult,
+  sendPsychometricTestLink,
 } from '../../utils/googleSheets';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { normalizeFlagItems, escapeHtml, parseJsonOrArray } from '../../utils/dashboardHelpers';
 import StatusBadge from './StatusBadge';
+import PersonalityAssessmentSection from './PersonalityAssessmentSection';
 
 const toPercentScore = (value) => {
   const num = Number(value || 0);
@@ -183,40 +186,81 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
   const [reportNote, setReportNote] = useState('');
   const [detailedSummary, setDetailedSummary] = useState(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
+  const [psychometric, setPsychometric] = useState(null);
+  const [loadingPsychometric, setLoadingPsychometric] = useState(false);
 
   useEffect(() => {
+    let ignore = false;
+
     const load = async () => {
+      if (!candidateId) {
+        setDetail(null);
+        setPsychometric(null);
+        setLoading(false);
+        setLoadingPsychometric(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        const data = await getCandidateDetails(candidateId);
-        if (!data) throw new Error('Not found');
+        setLoadingPsychometric(true);
+        setError('');
+        setPsychometric(null);
 
-        const parse = (v) => {
-          if (!v) return [];
-          try {
-            return typeof v === 'string' ? JSON.parse(v) : v;
-          } catch {
-            return [];
-          }
-        };
+        // Same round — wait for both so DISC card does not pop in late
+        const [detailResult, psychoResult] = await Promise.allSettled([
+          getCandidateDetails(candidateId),
+          getPsychometricResult(candidateId, 'Candidate'),
+        ]);
 
-        setDetail({
-          ...data,
-          questions: parse(data.questions),
-          correctAnswers: parse(data.correctAnswers),
-          candidateAnswers: parse(data.candidateAnswers),
-          topics: parse(data.topics),
-          difficulty: parse(data.difficulty),
-          perQuestionScores: parse(data.perQuestionScores),
-          questionTypes: parse(data.questionTypes),
-        });
+        if (ignore) return;
+
+        if (detailResult.status === 'fulfilled' && detailResult.value) {
+          const data = detailResult.value;
+          const parse = (v) => {
+            if (!v) return [];
+            try {
+              return typeof v === 'string' ? JSON.parse(v) : v;
+            } catch {
+              return [];
+            }
+          };
+
+          setDetail({
+            ...data,
+            questions: parse(data.questions),
+            correctAnswers: parse(data.correctAnswers),
+            candidateAnswers: parse(data.candidateAnswers),
+            topics: parse(data.topics),
+            difficulty: parse(data.difficulty),
+            perQuestionScores: parse(data.perQuestionScores),
+            questionTypes: parse(data.questionTypes),
+          });
+        } else {
+          setDetail(null);
+          setError('Could not load candidate details.');
+        }
+
+        if (psychoResult.status === 'fulfilled') {
+          setPsychometric(psychoResult.value);
+        } else {
+          console.error('Psychometric load failed:', psychoResult.reason);
+          setPsychometric(null);
+        }
       } catch {
-        setError('Could not load candidate details.');
+        if (!ignore) setError('Could not load candidate details.');
       } finally {
-        setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+          setLoadingPsychometric(false);
+        }
       }
     };
+
     load();
+    return () => {
+      ignore = true;
+    };
   }, [candidateId]);
 
   useEffect(() => {
@@ -648,8 +692,8 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
           {!loading && detail && (
             <div className="space-y-6 bg-white">
               {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-100">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-100 flex flex-col items-center">
                   <p className="text-xs text-slate-500 mb-1">Interview</p>
                   <StatusBadge status={detail.status} />
                 </div>
@@ -669,8 +713,27 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
                     {detail.tabSwitches || 0}
                   </p>
                 </div>
+                <div className="bg-slate-50 rounded-xl p-4 text-center border border-slate-100">
+                  <p className="text-xs text-slate-500 mb-1">DISC Role Fit</p>
+                  {loadingPsychometric ? (
+                    <div className="flex justify-center mt-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-indigo-400" />
+                    </div>
+                  ) : String(psychometric?.status || '').toLowerCase() === 'completed' ? (
+                    <>
+                      <p className="text-2xl font-extrabold text-indigo-600">
+                        {psychometric.roleFitScore != null ? `${psychometric.roleFitScore}%` : '—'}
+                      </p>
+                      <p className="text-[10px] font-bold text-slate-500 mt-0.5">
+                        {psychometric.roleFitLabel || psychometric.discProfile || ''}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm font-bold text-slate-400 mt-1">Pending</p>
+                  )}
+                </div>
                 <div
-                  className={`rounded-xl p-4 text-center border flex flex-col items-center justify-center relative group ${
+                  className={`rounded-xl p-4 text-center border flex flex-col items-center justify-center relative group col-span-2 sm:col-span-1 ${
                     (detailedSummary?.decision || detail.finalStatus) === 'Shortlist' ? 'bg-emerald-100 border-emerald-200 text-emerald-800' :
                     (detailedSummary?.decision || detail.finalStatus) === 'Maybe' ? 'bg-amber-100 border-amber-200 text-amber-800' :
                     (detailedSummary?.decision || detail.finalStatus) === 'Reject' ? 'bg-red-100 border-red-200 text-red-800' :
@@ -799,6 +862,33 @@ export default function CandidateDetailPanel({ candidateId, onClose }) {
                   {reportNote && <p className="text-xs text-slate-500">{reportNote}</p>}
                 </div>
               </div>
+
+              <PersonalityAssessmentSection
+                psychometric={
+                  psychometric || {
+                    id: detail.id,
+                    interviewId: detail.id,
+                    candidateName: detail.name,
+                    whatsapp: detail.wp,
+                    status: 'Not Started',
+                  }
+                }
+                loading={loadingPsychometric}
+                interviewCompleted={
+                  String(detail.status || '').trim().toLowerCase() === 'completed'
+                }
+                onResend={async (psycho) => {
+                  const id = psycho?.id || psycho?.interviewId || detail.id;
+                  const result = await sendPsychometricTestLink(id);
+                  try {
+                    const fresh = await getPsychometricResult(id, 'Candidate');
+                    setPsychometric(fresh);
+                  } catch (err) {
+                    console.error('Refresh psychometric after resend failed:', err);
+                  }
+                  return result;
+                }}
+              />
 
               {/* Questions & Answers */}
               {detail.questions.length > 0 ? (

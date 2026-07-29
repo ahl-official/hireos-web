@@ -47,6 +47,14 @@ const ACTION_HANDLERS = {
   getICPById: (data) => legacyDoPost_(null, 'getICPById', data),
   saveICP: (data) => legacyDoPost_(null, 'saveICP', data),
   generateCandidateTest: (data) => legacyDoPost_(null, 'generateCandidateTest', data),
+
+  // --- Psychometric / DISC ---
+  getPsychometricResult: (data) => getPsychometricResult(data),
+  getPsychometricQuestions: (data) => getPsychometricQuestions(data),
+  savePsychometricResult: (data) => savePsychometricResult(data),
+  sendPsychometricTestLink: (data) => sendPsychometricTestLink(data),
+  sendPendingEmployeePsychometricLinks: (data) =>
+    sendPendingEmployeePsychometricLinks(data),
 };
 
 function doPost(e) {

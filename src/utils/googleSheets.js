@@ -207,6 +207,39 @@ export const getCandidateDetails = async (id) => {
   }
 };
 
+export const getPsychometricResult = async (id, entityType = 'Candidate') => {
+  try {
+    const res = await post({
+      action: 'getPsychometricResult',
+      id,
+      interviewId: id,
+      entityType,
+    });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.data || null;
+  } catch (error) {
+    console.error('Error fetching psychometric result:', error);
+    throw error;
+  }
+};
+
+/** HR Resend — force=true so Pending candidates can get another WhatsApp. */
+export const sendPsychometricTestLink = async (id) => {
+  try {
+    const res = await post({
+      action: 'sendPsychometricTestLink',
+      id,
+      interviewId: id,
+      force: true,
+    });
+    if (res.data.status === 'error') throw new Error(res.data.message);
+    return res.data.data || null;
+  } catch (error) {
+    console.error('Error sending psychometric link:', error);
+    throw error;
+  }
+};
+
 export const regenerateReport = async (id) => {
   try {
     const res = await post({ action: 'regenerateReport', id });

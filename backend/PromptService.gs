@@ -202,6 +202,94 @@ Requirements:
   ];
 }
 
+// PSYCHOMETRIC //
+function buildDiscRoleBenchmarkPrompt_(payload) {
+  const roleName = String(payload.roleName || '').trim();
+
+  // Keep examples tiny: only name + ranges + typical profiles
+  const examples = (payload.examples || []).slice(0, 5).map(function (r) {
+    return {
+      role: r.roleName,
+      D: [r.D_Min, r.D_Max],
+      I: [r.I_Min, r.I_Max],
+      S: [r.S_Min, r.S_Max],
+      C: [r.C_Min, r.C_Max],
+      profiles: r.typicalProfiles || [],
+    };
+  });
+
+  return [
+    {
+      role: 'system',
+      content:
+        'Create one DISC role benchmark as JSON only. Scoring: 20 forced-choice questions; trait%=selections/20*100; D+I+S+C=100. Ranges are preferred % bands on that scale, not guesses. Use only profiles: D,Di,iD,I,iS,Si,S,SC,CS,C,CD,DC. Mirror style of examples.',
+    },
+    {
+      role: 'user',
+      content:
+        'Role: ' +
+        roleName +
+        '\nExamples: ' +
+        JSON.stringify(examples) +
+        '\nReturn:{"roleName":"","D_Min":0,"D_Max":0,"I_Min":0,"I_Max":0,"S_Min":0,"S_Max":0,"C_Min":0,"C_Max":0,"Typical_Profiles":[]}\nRules: mins<=maxs; each band width ~10-20; bands realistic for the role vs examples; 2-3 typical profiles which actually match the Role.',
+    },
+  ];
+}
+
+/**
+ * DISC summary + recommended roles.
+ * Math roles may be empty/weak — AI is allowed to refine or replace them.
+ */
+function buildDiscSummaryPrompt_(payload) {
+  const scores = payload.scores || {};
+  const profile = payload.profile || '';
+  const applied = payload.appliedRoleFit || {};
+  const recommended = payload.recommendedRoles || [];
+  const appliedRole = applied.appliedRole || payload.appliedRole || '';
+  const hasMathRoles = Array.isArray(recommended) && recommended.length > 0;
+
+  return [
+    {
+      role: 'system',
+      content: `You are an HR assistant writing a short DISC note and recommending job roles for hiring managers at a hair-restoration / aesthetics / digital business (sales, CRM, process, marketing, AI/tech, HR, operations).
+
+Rules:
+1. Do NOT invent a different DISC profile or recalculate the D/I/S/C percentages.
+2. Use the provided profile + scores as ground truth.
+3. Always return 3 recommendedRoles, ranked best-first.
+4. If systemRecommendedRoles is non-empty: refine/re-rank them using profile fit, applied-role context, and trait balance. You may drop weak matches and add 1–2 better roles if clearly justified.
+5. If systemRecommendedRoles is empty/null: invent practical roles that fit this DISC profile and scores (and prefer roles near the applied role when sensible).
+6. fitScore is an estimated 0–100 integer; fitLabel must be one of: Strong Fit, Moderate Fit, Weak Fit.
+7. Prefer concrete SME role titles (CRM Executive, Sales Executive, Process Coordinator, Digital Marketing Executive, Content Writer, HR Executive, AI Developer, Customer Support Executive).
+8. Keep tone practical and hiring-oriented.
+9. Return only JSON.`,
+    },
+    {
+      role: 'user',
+      content: `Write a DISC summary and recommended roles.
+
+DISC Profile: ${profile}
+Scores (0-100): D=${scores.D}, I=${scores.I}, S=${scores.S}, C=${scores.C}
+Applied / Current Role: ${appliedRole}
+Applied Role Fit (system): ${applied.roleFitScore || 0}% (${applied.roleFitLabel || ''})
+System recommended roles (${hasMathRoles ? 'refine these' : 'EMPTY — generate from profile'}): ${JSON.stringify(recommended)}
+
+Return JSON with this exact shape:
+{
+  "summary": "1-2 sentences on strengths and work style for hiring managers",
+  "recommendedRoles": [
+    { "roleName": "Role title", "fitScore": 85, "fitLabel": "Strong Fit", "reason": "one short clause why this DISC fits" }
+  ],
+  "recommendedRolesText": "comma-separated role names only, same order as recommendedRoles"
+}
+
+Requirements:
+- recommendedRoles length 3
+- Do not leave recommendedRoles empty
+- Reasons must reference the DISC profile or dominant traits (D/I/S/C)`,
+    },
+  ];
+}
 /**
  * Helper to sanitize inputs for prompts.
  */

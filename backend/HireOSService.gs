@@ -648,7 +648,7 @@ function legacyDoPost_(e, action, data) {
               updateRowByHeaders_(sheet, 'ID', id, updateData);
             } catch (err) {}
 
-            const hrSs = SpreadsheetApp.openById('1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI');
+            const hrSs = SpreadsheetApp.openById(getHrSharedSpreadsheetId_());
             const appSheet = hrSs.getSheetByName('Candidate Applications');
             if (appSheet) {
               const appData = appSheet.getDataRange().getValues();
@@ -688,6 +688,15 @@ function legacyDoPost_(e, action, data) {
         } catch (syncErr) {
           Logger.log('Submit Auto Sync failed: ' + syncErr.toString());
         }
+        // Psychometric: auto-send DISC WhatsApp link after completed written test
+        try {
+          if (String(data.status || '').toLowerCase() === 'completed') {
+            sendPsychometricTestLink(id);
+          }
+        } catch (e) {
+          console.error('[submitTest] psychometric WhatsApp failed:', e);
+        }
+
         return createSuccessResponse_({});
       }
       return createErrorResponse_('Test not found');
@@ -1152,7 +1161,7 @@ function legacyDoPost_(e, action, data) {
         updateRowByHeaders_(candidateSheet, 'ID', candidateId, updateData);
 
         // 7. Sync to Candidate Applications Sheet
-        const hrSs = SpreadsheetApp.openById('1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI');
+        const hrSs = SpreadsheetApp.openById(getHrSharedSpreadsheetId_());
         const appSheet = hrSs.getSheetByName('Candidate Applications');
         if (appSheet) {
           const appData = appSheet.getDataRange().getValues();
@@ -1213,6 +1222,14 @@ function legacyDoPost_(e, action, data) {
         '',
         'Interview fully submitted and graded'
       );
+
+      // Psychometric: auto-send DISC WhatsApp link (candidateId = Interview sheet ID)
+      try {
+        sendPsychometricTestLink(candidateId);
+      } catch (e) {
+        console.error('[submitInterview] psychometric WhatsApp failed:', e);
+      }
+
       return createSuccessResponse_({ gradeResult });
     }
 
@@ -1362,7 +1379,7 @@ function legacyDoPost_(e, action, data) {
       // Link back to Application Form if rowNumber is provided
       if (data.rowNumber) {
         try {
-          const hrSs = SpreadsheetApp.openById('1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI');
+          const hrSs = SpreadsheetApp.openById(getHrSharedSpreadsheetId_());
           const appSheet = hrSs.getSheetByName('Candidate Applications');
           if (appSheet) {
             appSheet.getRange(data.rowNumber, 42).setValue(id);
@@ -1821,6 +1838,9 @@ function legacyDoPost_(e, action, data) {
       const headerMap = {};
       headers.forEach((h, i) => (headerMap[h] = i));
 
+      // One pass over PsychometricResults for DISC column on Results table
+      const psychoMap = getCandidatePsychometricSummaryMap_();
+
       const candidates = [];
       for (let i = 1; i < data.length; i++) {
         const r = data[i];
@@ -1834,8 +1854,14 @@ function legacyDoPost_(e, action, data) {
         const submittedAtStr =
           rawSubmit instanceof Date ? rawSubmit.toISOString() : String(rawSubmit || '');
 
+        const id = r[headerMap['ID']];
+        const psycho = psychoMap[String(id || '').trim()] || {
+          discProfile: '',
+          discStatus: 'Not Started',
+        };
+
         candidates.push({
-          id: r[headerMap['ID']],
+          id: id,
           name: r[headerMap['Name']],
           email: r[headerMap['Email']],
           wp: r[headerMap['WhatsApp']],
@@ -1848,6 +1874,8 @@ function legacyDoPost_(e, action, data) {
           submittedAt: submittedAtStr,
           assessmentType: r[headerMap['Assessment Type']] || 'normal',
           finalStatus: r[headerMap['Final Status']] || '',
+          discProfile: psycho.discProfile || '',
+          discStatus: psycho.discStatus || 'Not Started',
         });
       }
       return createSuccessResponse_({ data: candidates.reverse() });
@@ -1963,7 +1991,7 @@ function legacyDoPost_(e, action, data) {
         }
 
         // Sync to Candidate Applications Sheet
-        const hrSs = SpreadsheetApp.openById('1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI');
+        const hrSs = SpreadsheetApp.openById(getHrSharedSpreadsheetId_());
         const appSheet = hrSs.getSheetByName('Candidate Applications');
         if (appSheet) {
           const appData = appSheet.getDataRange().getValues();
@@ -2329,7 +2357,7 @@ function forceSyncPastInterviews() {
   const scoreCol = cHeaders.indexOf('Score');
   const summaryCol = cHeaders.indexOf('Detailed Summary');
   
-  const hrSs = SpreadsheetApp.openById('1DMZetX7yfPUGMJYjRCLVydxcfw-DwWnT1WxxKmRgyCI');
+  const hrSs = SpreadsheetApp.openById(getHrSharedSpreadsheetId_());
   const appSheet = hrSs.getSheetByName('Candidate Applications');
   if (!appSheet) return;
   const appData = appSheet.getDataRange().getValues();

@@ -1,6 +1,25 @@
 // --- HIREOS CENTRALIZED SCHEMA CONFIGURATION ---
 const HIREOS_LOCAL_SS_PROP = 'HIREOS_LOCAL_SPREADSHEET_ID';
 
+/**
+ * Shared AHL HR workbook (Candidate Applications + Employees).
+ * MUST be set in Script Properties as HR_SHARED_SPREADSHEET_ID
+ * (same value as AHL HR Management System SHEET_ID — prod or test copy).
+ * No hardcoded sheet id in code.
+ */
+function getHrSharedSpreadsheetId_() {
+  const id = String(
+    PropertiesService.getScriptProperties().getProperty('HR_SHARED_SPREADSHEET_ID') || ''
+  ).trim();
+  if (!id) {
+    throw new Error(
+      'Script Property HR_SHARED_SPREADSHEET_ID is not set. ' +
+        'Set it to your HR workbook id (prod or test copy).'
+    );
+  }
+  return id;
+}
+
 const HIREOS_SHEET_SCHEMA = {
   CANDIDATES: {
     name: 'Interview',
@@ -107,8 +126,61 @@ const HIREOS_SHEET_SCHEMA = {
       'Updated At',
     ],
   },
+  // --- Psychometric / DISC ---
+  // ID = HireOS candidate (or employee) id — not the temporary audio session id
+  PSYCHOMETRIC_RESULTS: {
+    name: 'PsychometricResults',
+    headers: [
+      'ID',
+      'Name',
+      'Entity_Type',
+      'Email',
+      'WhatsApp',
+      'Test_Sent_At',
+      'Test_Completed_At',
+      'DISC_D',
+      'DISC_I',
+      'DISC_S',
+      'DISC_C',
+      'DISC_Profile',
+      'Applied_Role',
+      'Role_Fit_Score',
+      'Role_Fit_Label',
+      'DISC_Summary',
+      'Recommended_Roles',
+      'Status',
+      'Updated_At',
+    ],
+  },
+  PSYCHOMETRIC_QUESTIONS: {
+    name: 'PsychometricQuestions',
+    headers: [
+      'Question_No',
+      'Question_Text',
+      'D',
+      'I',
+      'S',
+      'C',
+      'Status',
+    ],
+  },
+  DISC_ROLE_BENCHMARKS: {
+    name: 'DISC_Role_Benchmarks',
+    headers: [
+      'Role_Name',
+      'D_Min',
+      'D_Max',
+      'I_Min',
+      'I_Max',
+      'S_Min',
+      'S_Max',
+      'C_Min',
+      'C_Max',
+      'Typical_Profiles',
+      'Status',
+    ],
+  },
 };
-
 /**
  * Main setup function to initialize the local spreadsheet schema.
  * RUN THIS MANUALLY in the Apps Script editor to prepare a new sheet.

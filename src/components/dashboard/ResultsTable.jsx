@@ -17,12 +17,59 @@ import {
 import StatusBadge from './StatusBadge';
 import StatCard from './StatCard';
 
+const DISC_FILTER_OPTIONS = [
+  { value: '', label: 'All DISC' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'not_started', label: 'Not started' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'D', label: 'D' },
+  { value: 'Di', label: 'Di' },
+  { value: 'iD', label: 'iD' },
+  { value: 'I', label: 'I' },
+  { value: 'iS', label: 'iS' },
+  { value: 'Si', label: 'Si' },
+  { value: 'S', label: 'S' },
+  { value: 'SC', label: 'SC' },
+  { value: 'CS', label: 'CS' },
+  { value: 'C', label: 'C' },
+  { value: 'CD', label: 'CD' },
+  { value: 'DC', label: 'DC' },
+];
+
+function DiscProfileBadge({ discStatus, discProfile }) {
+  const status = String(discStatus || 'Not Started').trim().toLowerCase();
+
+  if (status === 'completed' && discProfile) {
+    return (
+      <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 text-[11px] font-black tracking-wide">
+        {discProfile}
+      </span>
+    );
+  }
+
+  if (status === 'pending') {
+    return (
+      <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-bold uppercase tracking-wider">
+        Pending
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-slate-400 text-[10px] font-bold uppercase tracking-wider">
+      —
+    </span>
+  );
+}
+
 export default function ResultsTable({
   candidates,
   filteredCandidates,
   selectedCandidates,
   positionFilter,
   setPositionFilter,
+  discFilter = '',
+  setDiscFilter,
   loadingResults,
   fetchResults,
   handleDelete,
@@ -76,6 +123,20 @@ export default function ResultsTable({
               className="pl-9 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 w-full sm:w-64 transition-all"
             />
           </div>
+          {typeof setDiscFilter === 'function' && (
+            <select
+              value={discFilter}
+              onChange={(e) => setDiscFilter(e.target.value)}
+              className="pr-8 pl-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 bg-white text-slate-700 font-medium transition-all"
+              title="Filter by DISC profile"
+            >
+              {DISC_FILTER_OPTIONS.map((opt) => (
+                <option key={opt.value || 'all'} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             onClick={fetchResults}
             disabled={loadingResults}
@@ -148,6 +209,9 @@ export default function ResultsTable({
                       <div className="h-4 bg-slate-200 rounded w-16"></div>
                     </td>
                     <td className="px-4 py-4 hidden md:table-cell">
+                      <div className="h-6 bg-indigo-50 rounded-lg w-12"></div>
+                    </td>
+                    <td className="px-4 py-4 hidden lg:table-cell">
                       <div className="h-4 bg-slate-100 rounded w-20"></div>
                     </td>
                     <td className="px-6 py-4 text-right flex justify-end gap-2">
@@ -201,6 +265,9 @@ export default function ResultsTable({
                     Score
                   </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase hidden md:table-cell">
+                    DISC
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase hidden lg:table-cell">
                     Integrity
                   </th>
                   <th className="text-right px-6 py-3 text-xs font-semibold text-slate-500 uppercase">
@@ -283,6 +350,12 @@ export default function ResultsTable({
                       )}
                     </td>
                     <td className="px-4 py-4 hidden md:table-cell">
+                      <DiscProfileBadge
+                        discStatus={c.discStatus}
+                        discProfile={c.discProfile}
+                      />
+                    </td>
+                    <td className="px-4 py-4 hidden lg:table-cell">
                       {Number(c.tabSwitches) > 0 ? (
                         <span className="flex items-center gap-1.5 text-red-500 font-bold text-xs uppercase tracking-tight">
                           <AlertTriangle className="w-3.5 h-3.5" />

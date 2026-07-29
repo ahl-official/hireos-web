@@ -41,6 +41,7 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState(null);
   const [selectedCandidates, setSelectedCandidates] = useState([]);
   const [positionFilter, setPositionFilter] = useState('');
+  const [discFilter, setDiscFilter] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [audioFormData, setAudioFormData] = useState({ name: '', role: '', hrNotes: '' });
@@ -76,9 +77,22 @@ export default function Dashboard() {
     }
   };
 
-  const filteredCandidates = candidates.filter(
-    (c) => !positionFilter || c.position?.toLowerCase().includes(positionFilter.toLowerCase())
-  );
+  const filteredCandidates = candidates.filter((c) => {
+    if (positionFilter && !c.position?.toLowerCase().includes(positionFilter.toLowerCase())) {
+      return false;
+    }
+
+    if (!discFilter) return true;
+
+    const status = String(c.discStatus || 'Not Started').trim().toLowerCase();
+    const profile = String(c.discProfile || '').trim();
+
+    if (discFilter === 'pending') return status === 'pending';
+    if (discFilter === 'not_started') return status === 'not started' || status === '';
+    if (discFilter === 'completed') return status === 'completed';
+    // Exact DISC profile code (D, Di, iD, …)
+    return status === 'completed' && profile === discFilter;
+  });
 
   const handleDelete = async (e, id) => {
     e.stopPropagation();
@@ -264,6 +278,8 @@ export default function Dashboard() {
             selectedCandidates={selectedCandidates}
             positionFilter={positionFilter}
             setPositionFilter={setPositionFilter}
+            discFilter={discFilter}
+            setDiscFilter={setDiscFilter}
             loadingResults={loadingResults}
             fetchResults={fetchResults}
             handleDelete={handleDelete}
