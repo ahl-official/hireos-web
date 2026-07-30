@@ -1538,6 +1538,12 @@ function sendPsychometricTestLink(candidateIdOrData) {
         : candidateIdOrData) || ''
     ).trim();
     const force = !!(isObj && candidateIdOrData.force);
+    // force → bypass AUTO kill-switch. allowResend (default = force) → resend Pending.
+    // Bulk should use force:true, allowResend:false so Pending people are not WhatsApp'd again.
+    const allowResend =
+      isObj && Object.prototype.hasOwnProperty.call(candidateIdOrData, 'allowResend')
+        ? !!candidateIdOrData.allowResend
+        : force;
     const entityType = normalizeEntityType_(
       isObj ? candidateIdOrData.entityType : 'Candidate'
     );
@@ -1607,7 +1613,7 @@ function sendPsychometricTestLink(candidateIdOrData) {
       });
     }
 
-    if (!force && psychoStatus === 'pending') {
+    if (!allowResend && psychoStatus === 'pending') {
       return createSuccessResponse_({
         data: {
           skipped: true,
@@ -1716,12 +1722,36 @@ function sendPsychometricTestLink(candidateIdOrData) {
  * Bulk-send DISC links to Active employees whose Employees!DISC Profile is empty.
  * Each employee gets their own /psychometric/{EmployeeID}?entity=Employee link.
  *
- * Optional: { force: true } to resend even if PsychometricResults is already Pending.
+ * Anti-ban / Apps Script limits (defaults — override via Script Properties or payload):
+ *   DISC_BULK_BATCH_SIZE      = 10   (max WhatsApp sends per run)
+ *   DISC_BULK_DELAY_MIN_SEC   = 12
+ *   DISC_BULK_DELAY_MAX_SEC   = 35   (random delay between sends)
+ *
+ * Optional payload: { batchSize, delayMinSec, delayMaxSec, force, allowResend }
+ * Default: force=true (bypass AUTO kill-switch), allowResend=false (skip already Pending).
  */
 function sendPendingEmployeePsychometricLinks(data) {
   try {
-    // HR bulk action is intentional — default force so AUTO kill-switch does not block it
-    const force = !(data && data.force === false);
+    data = data || {};
+    const force = !(data.force === false);
+    const allowResend = data.allowResend === true;
+    const props = PropertiesService.getScriptProperties();
+    const batchSize = Math.max(
+      1,
+      Math.min(
+        30,
+        Number(data.batchSize || props.getProperty('DISC_BULK_BATCH_SIZE') || 10)
+      )
+    );
+    const delayMinSec = Math.max(
+      0,
+      Number(data.delayMinSec || props.getProperty('DISC_BULK_DELAY_MIN_SEC') || 12)
+    );
+    const delayMaxSec = Math.max(
+      delayMinSec,
+      Number(data.delayMaxSec || props.getProperty('DISC_BULK_DELAY_MAX_SEC') || 35)
+    );
+
     const sheet = getEmployeesSheet_();
     if (!sheet) {
       return createErrorResponse_('Employees sheet not found.', '', {
@@ -1732,7 +1762,13 @@ function sendPendingEmployeePsychometricLinks(data) {
     const values = sheet.getDataRange().getValues();
     if (values.length < 2) {
       return createSuccessResponse_({
-        data: { sent: 0, skipped: 0, results: [] },
+        data: {
+          sent: 0,
+          skipped: 0,
+          remaining: 0,
+          batchSize: batchSize,
+          results: [],
+        },
       });
     }
 
@@ -1758,15 +1794,12 @@ function sendPendingEmployeePsychometricLinks(data) {
       });
     }
 
-    // Ensure DISC Profile column exists for pending checks
     if (discCol === -1) {
       sheet.getRange(1, headers.length + 1).setValue('DISC Profile');
     }
 
-    const results = [];
-    var sent = 0;
-    var skipped = 0;
-
+    // Eligible = Active + empty DISC + phone
+    const eligible = [];
     for (var i = 1; i < values.length; i++) {
       const empId = String(values[i][idCol] || '').trim();
       if (!empId) continue;
@@ -1777,53 +1810,58 @@ function sendPendingEmployeePsychometricLinks(data) {
           : String(values[i][statusCol] || '')
               .trim()
               .toLowerCase();
-      if (empStatus && empStatus !== 'active') {
-        skipped++;
-        results.push({ id: empId, skipped: true, reason: 'NOT_ACTIVE' });
-        continue;
-      }
+      if (empStatus && empStatus !== 'active') continue;
 
       const discProfile =
         discCol === -1 ? '' : String(values[i][discCol] || '').trim();
-      if (discProfile) {
-        skipped++;
-        results.push({
-          id: empId,
-          skipped: true,
-          reason: 'DISC_PROFILE_PRESENT',
-        });
-        continue;
-      }
+      if (discProfile) continue;
 
       const phone =
         phoneCol === -1 ? '' : String(values[i][phoneCol] || '').trim();
-      if (!phone) {
-        skipped++;
-        results.push({ id: empId, skipped: true, reason: 'NO_PHONE' });
-        continue;
+      if (!phone) continue;
+
+      eligible.push(empId);
+    }
+
+    const results = [];
+    var sent = 0;
+    var skipped = 0;
+    var attempted = 0;
+
+    for (var e = 0; e < eligible.length; e++) {
+      if (sent >= batchSize) break;
+
+      const empId = eligible[e];
+
+      // Random pause before each WhatsApp (skip sleep before the first send)
+      if (attempted > 0 && delayMaxSec > 0) {
+        const span = delayMaxSec - delayMinSec;
+        const waitSec =
+          delayMinSec + (span > 0 ? Math.floor(Math.random() * (span + 1)) : 0);
+        if (waitSec > 0) Utilities.sleep(waitSec * 1000);
       }
 
+      attempted++;
       const res = sendPsychometricTestLink({
         id: empId,
         entityType: 'Employee',
         force: force,
+        allowResend: allowResend,
       });
 
-      // createSuccessResponse_ / createErrorResponse_ return ContentService objects
-      // in some paths — parse content if needed
       var parsed = res;
       try {
         if (res && typeof res.getContent === 'function') {
           parsed = JSON.parse(res.getContent());
         }
-      } catch (e) {}
+      } catch (parseErr) {}
 
+      const skippedSend = parsed && parsed.data && parsed.data.skipped;
       const ok =
         parsed &&
         (parsed.status === 'success' ||
           parsed.success === true ||
           (parsed.data && !parsed.data.skipped && parsed.data.link));
-      const skippedSend = parsed && parsed.data && parsed.data.skipped;
 
       if (skippedSend) {
         skipped++;
@@ -1832,6 +1870,13 @@ function sendPendingEmployeePsychometricLinks(data) {
           skipped: true,
           reason: parsed.data.reason || 'SKIPPED',
         });
+        // Already Pending / Completed don't count toward batch WhatsApp cap
+        if (
+          parsed.data.reason === 'ALREADY_SENT' ||
+          parsed.data.reason === 'ALREADY_COMPLETED'
+        ) {
+          attempted = Math.max(0, attempted - 1);
+        }
       } else if (ok || (parsed && parsed.data && parsed.data.link)) {
         sent++;
         results.push({
@@ -1844,13 +1889,53 @@ function sendPendingEmployeePsychometricLinks(data) {
         results.push({
           id: empId,
           skipped: true,
-          reason: (parsed && (parsed.message || parsed.errorCode)) || 'SEND_FAILED',
+          reason:
+            (parsed && (parsed.message || parsed.errorCode)) || 'SEND_FAILED',
         });
       }
     }
 
+    const remaining = Math.max(0, eligible.length - sent);
+    // Rough remaining for next runs: eligible not yet completed/sent this pass
+    // (ALREADY_SENT people are still "empty DISC" on sheet but won't WhatsApp again)
+    var stillNeedLink = 0;
+    for (var r = 0; r < eligible.length; r++) {
+      var id = eligible[r];
+      var wasSent = results.some(function (x) {
+        return x.id === id && x.sent;
+      });
+      var already = results.some(function (x) {
+        return (
+          x.id === id &&
+          x.skipped &&
+          (x.reason === 'ALREADY_SENT' || x.reason === 'ALREADY_COMPLETED')
+        );
+      });
+      if (!wasSent && !already) stillNeedLink++;
+    }
+
     return createSuccessResponse_({
-      data: { sent: sent, skipped: skipped, results: results },
+      data: {
+        sent: sent,
+        skipped: skipped,
+        remaining: stillNeedLink,
+        eligible: eligible.length,
+        batchSize: batchSize,
+        delayMinSec: delayMinSec,
+        delayMaxSec: delayMaxSec,
+        results: results,
+        message:
+          sent > 0
+            ? 'Sent ' +
+              sent +
+              ' link(s) this batch' +
+              (stillNeedLink
+                ? ' · ~' + stillNeedLink + ' still need a link — run Bulk Send again later'
+                : ' · queue clear')
+            : stillNeedLink
+              ? 'No new WhatsApp this run · ~' + stillNeedLink + ' still eligible'
+              : 'No pending Active employees to message',
+      },
     });
   } catch (error) {
     console.error('[sendPendingEmployeePsychometricLinks]', error);
